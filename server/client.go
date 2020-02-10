@@ -55,6 +55,14 @@ func (client *Client) openConnection(conn net.Conn) {
 			client.closeConnection(connId, conn)
 		}()
 
+		openPack := & schema.PackResponse {
+			ClientId: client.ClientId,
+			ConnId: connId,
+			Type: schema.OPEN,
+		}
+
+		toChann <- openPack
+
 		bs := make([]byte, PACKSIZE)
 		for {
 			if n, err := conn.Read(bs); err == nil && n > 0 {
@@ -111,5 +119,16 @@ func (client *Client) requestHandler(w http.ResponseWriter, req *http.Request) {
 	if err = packRequest.Unmarshal(bs); err != nil {
 		logger.Error(err)
 		return
+	}
+
+	if packRequest.Type == schema.CLIENTPACK {
+		client.fromClientChanns[packRequest.ConnId] <- &packRequest
+
+	}else if packRequest.Type == schema.CLIENTREQUEST {
+		packResponse := <- client.toClientChanns[packRequest.ConnId]
+		data, err := packResponse.Marshal()
+		if err != nil {
+			w.Write(data)
+		}
 	}
 }

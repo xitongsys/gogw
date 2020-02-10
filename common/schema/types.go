@@ -14,6 +14,8 @@ const (
 type PackType int 
 const (
 	_ PackType = iota
+	CLIENTREQUEST
+	CLIENTPACK
 	OPEN
 	NORMAL
 	CLOSE
