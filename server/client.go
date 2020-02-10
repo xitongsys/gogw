@@ -6,9 +6,9 @@ import (
 	"io/ioutil"
 	"fmt"
 
-	"schema"
-	"logger"
-	"common"
+	"gogw/schema"
+	"gogw/logger"
+	"gogw/common"
 )
 
 type Client struct {
@@ -37,31 +37,28 @@ func (client *Client) start() {
 }
 
 func (client *Client) openConnection(conn net.Conn) {
-	connId, err := util.uuid()
-	if err != nil {
-		logger.Warn(err)
-		return
-	}
+	connId := common.UUID()
+	_ = connId
 }
 
-func (client *Client) closeConnection(connId ConnectionId) {
+func (client *Client) closeConnection(connId schema.ConnectionId) {
 	
 }
 
 func (client *Client) requestHandler(w http.ResponseWriter, req *http.Request) {
-	bs, err := ioutil.ReadAll(req)
+	bs, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		logger.Error(err)
 		return
 	}
 
-	pack := PackType{}
-	if err = pack.Unmarshal(bs); err != nil {
+	packRequest := schema.PackRequest{}
+	if err = packRequest.Unmarshal(bs); err != nil {
 		logger.Error(err)
 		return
 	}
 
-	if pack.PackType == CLOSE {
+	if packRequest.Type == schema.CLOSE {
 
 	}
 }
