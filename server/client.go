@@ -4,10 +4,11 @@ import (
 	"net"
 	"net/http"
 	"io/ioutil"
+	"fmt"
 
-	"github.com/xitongsys/gogw/schema"
-	"github.com/xitongsys/gogw/logger"
-	"github.com/xitongys/gogw/common"
+	"schema"
+	"logger"
+	"common"
 )
 
 type Client struct {
@@ -16,13 +17,13 @@ type Client struct {
 	Conns map[schema.ConnectionId][2]chan schema.PackType
 }
 
-func (client *Cient) start() {
-	l, err := net.Listen("tcp4", client.Port)
+func (client *Client) start() {
+	l, err := net.Listen("tcp4", fmt.Sprintf("0.0.0.0:%d", client.Port))
 	if err != nil {
 		logger.Error(err)
 		return
 	}
-	defer l.close()
+	defer l.Close()
 
 	for {
 		conn, err := l.Accept()
@@ -33,7 +34,6 @@ func (client *Cient) start() {
 
 		client.openConnection(conn)
 	}
-
 }
 
 func (client *Client) openConnection(conn net.Conn) {
@@ -42,9 +42,6 @@ func (client *Client) openConnection(conn net.Conn) {
 		logger.Warn(err)
 		return
 	}
-
-
-
 }
 
 func (client *Client) closeConnection(connId ConnectionId) {
