@@ -32,7 +32,7 @@ func (client *Client) Start() error {
 		return err
 	}
 
-	
+
 }
 
 func (client *Client) register() error {
@@ -71,7 +71,7 @@ func (clinet *Client) openConnection(connId schema.ConnectionId) error {
 					Content: string(bs[:n]),
 				}
 
-				client.sendToServer(connId, packRequest)
+				client.sendToServer(packRequest)
 
 
 			}else if err != nil {
@@ -104,7 +104,7 @@ func (client *Client) closeConnection(connId schema.ConnectionId, conn net.Conn)
 	conn.Close()
 }
 
-func (client *Clinet) sendToServer(connId schema.ConnectionId, packRequest *schema.PackRequest) error {
+func (client *Clinet) sendToServer(packRequest *schema.PackRequest) error {
 	url := fmt.Sprintf("%s/pack?clientid=%s", client.ServerAddr, client.ClientId)
 	var data []byte
 	if data, err = packRequest.Marshal(); err == nil {
