@@ -1,0 +1,147 @@
+package client
+
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"time"
+
+	"gogw/common"
+	"gogw/common/schema"
+	"gogw/logger"
+)
+
+const (
+	PACKSIZE = 10240
+	BUFFERSIZE = 100
+)
+
+type Client struct {
+	ServerAddr string
+
+	LocalAddr string
+	RemotePort int
+
+	ClientId schema.ClientId
+}
+
+func (client *Client) Start() error {
+	if err := client.register(); err != nil {
+		return err
+	}
+
+	
+}
+
+func (client *Client) register() error {
+	url := fmt.Sprintf("%s/register?port=%d", client.ServerAddr, client.RemotePort)
+	data, err := client.query(url, nil)
+
+	registerResponse := & schema.RegisterResponse{}
+	if err := registerResponse.Unmarshal(data); err != nil || registerResponse.Code == schema.FAILED {
+		return fmt.Errorf("Register failed")
+	}
+
+	client.ClientId = registerResponse.ClientId
+}
+
+func (clinet *Client) openConnection(connId schema.ConnectionId) error {
+	conn, err := net.Dial("tcp", client.LocalAddr)
+	if err != nil {
+		return err
+	}
+
+	connId := schema.ConnectionId(common.UUID())
+
+	//read from conn, send to server
+	go func() {
+		defer func(){
+			client.closeConnection(connId, conn)
+		}()
+
+		bs := make([]byte, PACKSIZE)
+		for {
+			if n, err := conn.Read(bs); err == nil && n > 0 {
+				packRequest := & schema.PackRequest {
+					ClientId: client.ClientId,
+					ConnId: connId,
+					Type: schema.NORMAL,
+					Content: string(bs[:n]),
+				}
+
+				client.sendToServer(connId, packRequest)
+
+
+			}else if err != nil {
+				logger.Warn(err)
+				return
+			}
+		}
+	}()
+
+	//read from server, send to conn
+	go fund(){
+		defer func(){
+			client.closeConnection(connId, conn)
+		}()
+
+		for {
+			packResponse, err := client.recvFromServer(connId)
+			if err == nil {
+				_, err = io.WriteString(conn, packResponse.Content)
+
+			}
+			if err != nil {
+				return
+			}
+		}
+	}()
+}
+
+func (client *Client) closeConnection(connId schema.ConnectionId, conn net.Conn) {
+	conn.Close()
+}
+
+func (client *Clinet) sendToServer(connId schema.ConnectionId, packRequest *schema.PackRequest) error {
+	url := fmt.Sprintf("%s/pack?clientid=%s", client.ServerAddr, client.ClientId)
+	var data []byte
+	if data, err = packRequest.Marshal(); err == nil {
+		_, err = client.query(url, data)
+	}
+
+	return err
+}
+
+func (client *Client) recvFromServer(connId schema.ConnectionId) (schema.PackResponse, error) {
+	url := fmt.Sprintf("%s/pack?clientid=%s", client.ServerAddr, client.ClientId)
+	packRequest := & schema.PackRequest {
+		ClientId: client.ClientId,
+		ConnId: connId,
+		Type: schema.CLIENTREQUEST,
+	}
+
+	if data, err := packRequest.Marshal(); err == nil {
+		rep, err1 := client.query(url, data)
+		if err1 == nil {
+			packResponse := & schema.PackResponse{}
+			if err2 = packResponse.Unmarshal(rep); err2 == nil {
+				return packResponse, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("recv error")
+}
+
+func (client *Client) query(url string, body []byte) ([]byte, error) {
+	rep, err := http.Post(url, "application/json", bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
+	}
+
+	defer rep.Body.Close()
+	return ioutil.ReadAll(rep.Body)
+}
+

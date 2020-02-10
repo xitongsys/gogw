@@ -91,7 +91,7 @@ func (client *Client) openConnection(conn net.Conn) {
 		for {
 			pack, ok := <- fromChann
 			if ok {
-				n, err := io.WriteString(conn, pack.Content)
+				_, err := io.WriteString(conn, pack.Content)
 				if err != nil {
 					return
 				}
