@@ -8,6 +8,7 @@ type PackRequest struct {
 	ClientId ClientId
 	ConnId ConnectionId
 	Type PackType
+	Content string
 }
 
 func (packRequest *PackRequest) Marshal() ([]byte, error) {
@@ -22,7 +23,7 @@ type PackResponse struct {
 	ClientId ClientId
 	ConnId ConnectionId
 	Type PackType
-	PackContent string
+	Content string
 }
 
 func (packResponse *PackResponse) Marshal() ([]byte, error) {
