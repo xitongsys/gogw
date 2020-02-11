@@ -135,6 +135,10 @@ func (client *Client) recvFromServer(connId schema.ConnectionId) (schema.PackRes
 	return nil, fmt.Errorf("recv error")
 }
 
+func (client *Client) cmdHander() error {
+	
+}
+
 func (client *Client) query(url string, body []byte) ([]byte, error) {
 	rep, err := http.Post(url, "application/json", bytes.NewBuffer(body))
 	if err != nil {

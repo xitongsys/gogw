@@ -22,6 +22,7 @@ type Client struct {
 	Port int
 	fromClientChanns map[schema.ConnectionId]chan *schema.PackRequest
 	toClientChanns map[schema.ConnectionId]chan *schema.PackResponse
+	CmdChann chan *schema.PackRespone
 }
 
 func (client *Client) Start() {
@@ -49,19 +50,19 @@ func (client *Client) openConnection(conn net.Conn) {
 	client.toClientChanns[connId] = toChann
 	client.fromClientChanns[connId] = fromChann
 
+	openPack := & schema.PackResponse {
+		ClientId: client.ClientId,
+		ConnId: connId,
+		Type: schema.SERVER_CMD,
+		Content: schema.CMD_OPEN_CONN,
+	}
+	client.CmdChann <- openPack
+
 	//read from conn, send to client
 	go func(){
 		defer func(){
 			client.closeConnection(connId, conn)
 		}()
-
-		openPack := & schema.PackResponse {
-			ClientId: client.ClientId,
-			ConnId: connId,
-			Type: schema.OPEN,
-		}
-
-		toChann <- openPack
 
 		bs := make([]byte, PACKSIZE)
 		for {
@@ -108,6 +109,11 @@ func (client *Client) closeConnection(connId schema.ConnectionId, conn net.Conn)
 	delete(client.fromClientChanns, connId)
 }
 
+func (client *Client) cmdHandler(packRequest *schema.PackRequest) *schema.PackResponse {
+	packResponse := & schema.PackResponse{}
+	return packResponse
+}
+
 func (client *Client) requestHandler(w http.ResponseWriter, req *http.Request) {
 	bs, err := ioutil.ReadAll(req.Body)
 	if err != nil {
@@ -121,14 +127,29 @@ func (client *Client) requestHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if packRequest.Type == schema.CLIENTPACK {
+	if packRequest.Type == schema.CLIENT_SEND_PACK {
 		client.fromClientChanns[packRequest.ConnId] <- &packRequest
 
-	}else if packRequest.Type == schema.CLIENTREQUEST {
+	}else if packRequest.Type == schema.CLIENTR_EQUEST_PACK {
 		packResponse := <- client.toClientChanns[packRequest.ConnId]
 		data, err := packResponse.Marshal()
 		if err != nil {
 			w.Write(data)
+		}
+
+	}else if packRequest.Type == schema.CLIENT_SEND_CMD {
+		packResponse := client.cmdHandler(packRequest)
+		data, err := packResponse.Marshal()
+		if err != nil {
+			w.Write(data)
+		}
+
+	}else if packRequest.Type == schema.CLIENT_REQUEST_CMD {
+		select {
+		case packResponse := <- client.CmdChann:
+			if data, err := packResponse.Marshal(); err == nil {
+				w.Write(data)
+			}
 		}
 	}
 }

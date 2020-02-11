@@ -14,9 +14,20 @@ const (
 type PackType int 
 const (
 	_ PackType = iota
-	CLIENTREQUEST
-	CLIENTPACK
+	CLIENT_REQUEST_PACK
+	CLIENT_SEND_PACK
+	CLIENT_REQUEST_CMD
+	CLIENT_SEND_CMD
+
+	SERVER_PACK
+	SERVER_CMD
+
 	OPEN
 	NORMAL
 	CLOSE
+)
+
+const (
+	CMD_OPEN_CONN = "open"
+	CMD_CLOSE_CONN = "close"
 )
