@@ -21,7 +21,7 @@ type Config struct {
 	Server ServerConfig
 }
 
-func NewConfig(file string) (*Config, err) {
+func NewConfig(file string) (*Config, error) {
 	cfg := &Config{}
 	data, err := ioutil.ReadFile(file)
 	if err != nil {

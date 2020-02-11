@@ -26,8 +26,8 @@ type Client struct {
 	ClientId schema.ClientId
 }
 
-func NewClient(serverAddr string, localAddr string, remotePort int) {
-	return &Client {
+func NewClient(serverAddr string, localAddr string, remotePort int) *Client {
+	return & Client {
 		ServerAddr: serverAddr,
 		LocalAddr: localAddr,
 		RemotePort: remotePort,
