@@ -95,6 +95,8 @@ func (client *Client) openConnection(conn net.Conn) {
 					Content: string(bs[:n]),
 				}
 
+				logger.Debug("to client: ", *pack)
+
 				toChann <- pack
 
 			}else if err != nil {
@@ -112,6 +114,8 @@ func (client *Client) openConnection(conn net.Conn) {
 
 		for {
 			pack, ok := <- fromChann
+			logger.Debug("from client", *pack)
+
 			if ok {
 				_, err := io.WriteString(conn, pack.Content)
 				if err != nil {

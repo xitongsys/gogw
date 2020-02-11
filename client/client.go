@@ -82,6 +82,8 @@ func (client *Client) openConnection(connId schema.ConnectionId) error {
 					Content: string(bs[:n]),
 				}
 
+				logger.Debug("to server", *packRequest)
+
 				client.sendToServer(packRequest)
 
 
@@ -100,11 +102,16 @@ func (client *Client) openConnection(connId schema.ConnectionId) error {
 
 		for {
 			packResponse, err := client.recvFromServer(connId)
+
 			if err == nil {
+
+				logger.Debug("from server", *packResponse)
+
 				_, err = io.WriteString(conn, packResponse.Content)
 
 			}
 			if err != nil {
+				logger.Warn(err)
 				return
 			}
 		}
@@ -134,18 +141,19 @@ func (client *Client) recvFromServer(connId schema.ConnectionId) (*schema.PackRe
 		ConnId: connId,
 		Type: schema.CLIENT_REQUEST_PACK,
 	}
-
-	if data, err := packRequest.Marshal(); err == nil {
-		rep, err1 := client.query(url, data)
-		if err1 == nil {
+	var data []byte
+	var err error 
+	if data, err = packRequest.Marshal(); err == nil {
+		data, err = client.query(url, data)
+		if err == nil {
 			packResponse := & schema.PackResponse{}
-			if err2 := packResponse.Unmarshal(rep); err2 == nil {
+			if err = packResponse.Unmarshal(data); err == nil {
 				return packResponse, nil
 			}
 		}
 	}
 
-	return nil, fmt.Errorf("recv error")
+	return nil, err
 }
 
 func (client *Client) cmdHandler(pack *schema.PackResponse) {
