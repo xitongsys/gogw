@@ -1,16 +1,33 @@
 package main
 
 import ( 
-	"fmt"
-    "net/http"
+	"flag"
+
+	"gogw/logger"
+	"gogw/config"
+	"gogw/server"
+	"gogw/client"
 )
 
-func Handler(w http.ResponseWriter, req *http.Request){
-	w.Write([]byte("hello"))
-}
+var cfgFile = flag.String("c", "cfg.json", "")
 
 func main(){
-	fmt.Println("start")
-	http.HandleFunc("/hello", Handler)
-	http.ListenAndServe(":12345", nil)
+	logger.Info("gogw start")
+	flag.Parse()
+
+	cfg, err := config.NewConfig(*cfgFile)
+	if err != nil {
+		logger.Error(err)
+		return
+	}
+
+	if cfg.Role == "server" {
+		server := server.NewServer(cfg.Server.ServerAddr)
+		server.Start()
+	}
+
+	if cfg.Role == "client" {
+		client := client.NewClient(cfg.Client.ServerAddr, cfg.Client.LocalAddr, cfg.Client.RemotePort)
+		client.Start()
+	}
 }

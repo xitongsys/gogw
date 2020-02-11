@@ -26,7 +26,16 @@ type Client struct {
 	ClientId schema.ClientId
 }
 
+func NewClient(serverAddr string, localAddr string, remotePort int) {
+	return &Client {
+		ServerAddr: serverAddr,
+		LocalAddr: localAddr,
+		RemotePort: remotePort,
+	}
+}
+
 func (client *Client) Start() {
+	logger.Info("client start")
 	if err := client.register(); err != nil {
 		logger.Error(err)
 		return

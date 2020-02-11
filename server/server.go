@@ -15,6 +15,12 @@ type Server struct {
 	Clients map[schema.ClientId]*Client
 }
 
+func NewServer(serverAddr string) *Server {
+	return & Server{
+		ServerAddr: serverAddr,
+	}
+}
+
 func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) {
 	if ps, ok := req.URL.Query()["port"]; ok && len(ps[0])>0{
 		clientId := schema.ClientId(common.UUID())
