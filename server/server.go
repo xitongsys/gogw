@@ -18,6 +18,7 @@ type Server struct {
 func NewServer(serverAddr string) *Server {
 	return & Server{
 		ServerAddr: serverAddr,
+		Clients: make(map[schema.ClientId]*Client),
 	}
 }
 
@@ -33,6 +34,21 @@ func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) 
 		if err := client.Start(); err != nil {
 			logger.Error(err)
 			delete(server.Clients, clientId)
+		}
+
+		registerResponse := & schema.RegisterResponse {
+			ClientId: clientId,
+			Code: schema.SUCCESS,
+		}
+
+		if data, err1 := registerResponse.Marshal(); err1 != nil {
+			logger.Error(err1)
+			delete(server.Clients, clientId)
+		}else{
+			if _, err2 := w.Write(data); err2 != nil {
+				logger.Error(err2)
+				delete(server.Clients, clientId)
+			}
 		}
 	}
 }

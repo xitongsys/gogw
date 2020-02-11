@@ -45,7 +45,7 @@ func (client *Client) Start() {
 }
 
 func (client *Client) register() error {
-	url := fmt.Sprintf("%s/register?port=%d", client.ServerAddr, client.RemotePort)
+	url := fmt.Sprintf("http://%s/register?port=%d", client.ServerAddr, client.RemotePort)
 	data, err := client.query(url, nil)
 	if err != nil {
 		return err
@@ -118,7 +118,7 @@ func (client *Client) closeConnection(connId schema.ConnectionId, conn net.Conn)
 }
 
 func (client *Client) sendToServer(packRequest *schema.PackRequest) (err error) {
-	url := fmt.Sprintf("%s/pack?clientid=%s", client.ServerAddr, client.ClientId)
+	url := fmt.Sprintf("http://%s/pack?clientid=%s", client.ServerAddr, client.ClientId)
 	var data []byte
 	if data, err = packRequest.Marshal(); err == nil {
 		_, err = client.query(url, data)
@@ -128,7 +128,7 @@ func (client *Client) sendToServer(packRequest *schema.PackRequest) (err error) 
 }
 
 func (client *Client) recvFromServer(connId schema.ConnectionId) (*schema.PackResponse, error) {
-	url := fmt.Sprintf("%s/pack?clientid=%s", client.ServerAddr, client.ClientId)
+	url := fmt.Sprintf("http://%s/pack?clientid=%s", client.ServerAddr, client.ClientId)
 	packRequest := & schema.PackRequest {
 		ClientId: client.ClientId,
 		ConnId: connId,
@@ -155,7 +155,7 @@ func (client *Client) cmdHandler(pack *schema.PackResponse) {
 }
 
 func (client *Client) recvCmdFromServer() error {
-	url := fmt.Sprintf("%s/pack?clientid=%s", client.ServerAddr, client.ClientId)
+	url := fmt.Sprintf("http://%s/pack?clientid=%s", client.ServerAddr, client.ClientId)
 	for {
 		packRequest := & schema.PackRequest {
 			ClientId: client.ClientId,
