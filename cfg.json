@@ -1,11 +1,11 @@
 {
 	"Role":"server",
 	"Client":{
-		"ServerAddr":"127.0.0.1:80",
+		"ServerAddr":"127.0.0.1:808",
 		"LocalAddr":"127.0.0.1:8080",
 		"RemotePort":81
 	},
 	"Server":{
-		"ServerAddr":"127.0.0.1:80"
+		"ServerAddr":"127.0.0.1:808"
 	}
 }
