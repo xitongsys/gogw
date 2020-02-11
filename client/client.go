@@ -147,6 +147,9 @@ func (client *Client) recvFromServer(connId schema.ConnectionId) (*schema.PackRe
 		data, err = client.query(url, data)
 		if err == nil {
 			packResponse := & schema.PackResponse{}
+
+			logger.Debug(string(data))
+
 			if err = packResponse.Unmarshal(data); err == nil {
 				return packResponse, nil
 			}

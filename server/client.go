@@ -157,10 +157,11 @@ func (client *Client) requestHandler(w http.ResponseWriter, req *http.Request) {
 
 	}else if packRequest.Type == schema.CLIENT_REQUEST_PACK {
 		packResponse := <- client.ToClientChanns[packRequest.ConnId]
-		data, err := packResponse.Marshal()
-		if err != nil {
-			w.Write(data)
-		}
+		data, _ := packResponse.Marshal()
+
+		logger.Debug("to client", string(data))
+
+		w.Write(data)
 
 	}else if packRequest.Type == schema.CLIENT_SEND_CMD {
 		packResponse := client.cmdHandler(packRequest)
