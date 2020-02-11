@@ -20,35 +20,56 @@ const (
 type Client struct {
 	ClientId schema.ClientId
 	Port int
-	fromClientChanns map[schema.ConnectionId]chan *schema.PackRequest
-	toClientChanns map[schema.ConnectionId]chan *schema.PackResponse
-	CmdChann chan *schema.PackRespone
+	Listener net.Listener
+	FromClientChanns map[schema.ConnectionId]chan *schema.PackRequest
+	ToClientChanns map[schema.ConnectionId]chan *schema.PackResponse
+	CmdToClientChann chan *schema.PackResponse
 }
 
-func (client *Client) Start() {
-	l, err := net.Listen("tcp4", fmt.Sprintf("0.0.0.0:%d", client.Port))
+func NewClient(clientId schema.ClientId, port int) *Client {
+	return & Client {
+		ClientId: clientId,
+		Port: port,
+		FromClientChanns: make(map[schema.ConnectionId]chan *schema.PackRequest),
+		ToClientChanns: make(map[schema.ConnectionId]chan *schema.PackResponse),
+		CmdToClientChann: make(chan *schema.PackResponse),
+	}
+}
+
+func (client *Client) Start() (err error) {
+	client.Listener, err = net.Listen("tcp4", fmt.Sprintf("0.0.0.0:%d", client.Port))
 	if err != nil {
-		logger.Error(err)
-		return
+		return err
 	}
-	defer l.Close()
+	
+	go func() {
+		for {
+			conn, err := client.Listener.Accept()
+			if err != nil {
+				logger.Warn(err)
+				return
+			}
 
-	for {
-		conn, err := l.Accept()
-		if err != nil {
-			logger.Warn(err)
-			continue
+			client.openConnection(conn)
 		}
+	}()
 
-		client.openConnection(conn)
+	return nil
+}
+
+func (client *Client) Stop() error {
+	if client.Listener == nil {
+		return nil
 	}
+	
+	return client.Listener.Close()
 }
 
 func (client *Client) openConnection(conn net.Conn) {
 	connId := schema.ConnectionId(common.UUID())
 	toChann, fromChann := make(chan *schema.PackResponse, BUFFSIZE), make(chan *schema.PackRequest, BUFFSIZE)
-	client.toClientChanns[connId] = toChann
-	client.fromClientChanns[connId] = fromChann
+	client.ToClientChanns[connId] = toChann
+	client.FromClientChanns[connId] = fromChann
 
 	openPack := & schema.PackResponse {
 		ClientId: client.ClientId,
@@ -56,7 +77,7 @@ func (client *Client) openConnection(conn net.Conn) {
 		Type: schema.SERVER_CMD,
 		Content: schema.CMD_OPEN_CONN,
 	}
-	client.CmdChann <- openPack
+	client.CmdToClientChann <- openPack
 
 	//read from conn, send to client
 	go func(){
@@ -103,10 +124,10 @@ func (client *Client) openConnection(conn net.Conn) {
 
 func (client *Client) closeConnection(connId schema.ConnectionId, conn net.Conn) {
 	conn.Close()
-	close(client.toClientChanns[connId])
-	close(client.fromClientChanns[connId])
-	delete(client.toClientChanns, connId)
-	delete(client.fromClientChanns, connId)
+	close(client.ToClientChanns[connId])
+	close(client.FromClientChanns[connId])
+	delete(client.ToClientChanns, connId)
+	delete(client.FromClientChanns, connId)
 }
 
 func (client *Client) cmdHandler(packRequest *schema.PackRequest) *schema.PackResponse {
@@ -121,17 +142,17 @@ func (client *Client) requestHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	packRequest := schema.PackRequest{}
+	packRequest := &schema.PackRequest{}
 	if err = packRequest.Unmarshal(bs); err != nil {
 		logger.Error(err)
 		return
 	}
 
 	if packRequest.Type == schema.CLIENT_SEND_PACK {
-		client.fromClientChanns[packRequest.ConnId] <- &packRequest
+		client.FromClientChanns[packRequest.ConnId] <- packRequest
 
-	}else if packRequest.Type == schema.CLIENTR_EQUEST_PACK {
-		packResponse := <- client.toClientChanns[packRequest.ConnId]
+	}else if packRequest.Type == schema.CLIENT_REQUEST_PACK {
+		packResponse := <- client.ToClientChanns[packRequest.ConnId]
 		data, err := packResponse.Marshal()
 		if err != nil {
 			w.Write(data)
@@ -146,7 +167,7 @@ func (client *Client) requestHandler(w http.ResponseWriter, req *http.Request) {
 
 	}else if packRequest.Type == schema.CLIENT_REQUEST_CMD {
 		select {
-		case packResponse := <- client.CmdChann:
+		case packResponse := <- client.CmdToClientChann:
 			if data, err := packResponse.Marshal(); err == nil {
 				w.Write(data)
 			}

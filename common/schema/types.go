@@ -28,6 +28,6 @@ const (
 )
 
 const (
-	CMD_OPEN_CONN = "open"
-	CMD_CLOSE_CONN = "close"
+	CMD_OPEN_CONN = "open_conn"
+	CMD_CLOSE_CONN = "close_conn"
 )

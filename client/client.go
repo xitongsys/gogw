@@ -27,12 +27,13 @@ type Client struct {
 	ClientId schema.ClientId
 }
 
-func (client *Client) Start() error {
+func (client *Client) Start() {
 	if err := client.register(); err != nil {
-		return err
+		logger.Error(err)
+		return
 	}
 
-
+	client.recvCmdFromServer()
 }
 
 func (client *Client) register() error {
@@ -67,7 +68,7 @@ func (clinet *Client) openConnection(connId schema.ConnectionId) error {
 				packRequest := & schema.PackRequest {
 					ClientId: client.ClientId,
 					ConnId: connId,
-					Type: schema.NORMAL,
+					Type: schema.CLIENT_SEND_PACK,
 					Content: string(bs[:n]),
 				}
 
@@ -119,7 +120,7 @@ func (client *Client) recvFromServer(connId schema.ConnectionId) (schema.PackRes
 	packRequest := & schema.PackRequest {
 		ClientId: client.ClientId,
 		ConnId: connId,
-		Type: schema.CLIENTREQUEST,
+		Type: schema.CLIENT_REQUEST_PACK,
 	}
 
 	if data, err := packRequest.Marshal(); err == nil {
@@ -135,8 +136,28 @@ func (client *Client) recvFromServer(connId schema.ConnectionId) (schema.PackRes
 	return nil, fmt.Errorf("recv error")
 }
 
-func (client *Client) cmdHander() error {
-	
+func (client *Client) cmdHandler(pack *schema.PackResponse) {
+	if pack.Content == schema.CMD_OPEN_CONN {
+		client.openConnection(pack.ConnId)
+	}
+}
+
+func (client *Client) recvCmdFromServer() error {
+	for {
+		packRequest := & schema.PackRequest {
+			ClientId: client.ClientId,
+			Type: schema.CLIENT_REQUEST_CMD,
+		}
+
+		if data, err := packRequest.Marshal(); err == nil {
+			if data, err = client.query(url, data); err == nil {
+				packResponse := & schema.PackResponse
+				if err = packResponse.Unmarshal(data); err == nil {
+					client.cmdHandler(packResponse.Content)
+				}
+			}
+		}
+	}
 }
 
 func (client *Client) query(url string, body []byte) ([]byte, error) {
