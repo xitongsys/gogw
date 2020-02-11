@@ -6,9 +6,8 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"time"
+	"net"
 
-	"gogw/common"
 	"gogw/common/schema"
 	"gogw/logger"
 )
@@ -39,6 +38,9 @@ func (client *Client) Start() {
 func (client *Client) register() error {
 	url := fmt.Sprintf("%s/register?port=%d", client.ServerAddr, client.RemotePort)
 	data, err := client.query(url, nil)
+	if err != nil {
+		return err
+	}
 
 	registerResponse := & schema.RegisterResponse{}
 	if err := registerResponse.Unmarshal(data); err != nil || registerResponse.Code == schema.FAILED {
@@ -46,15 +48,14 @@ func (client *Client) register() error {
 	}
 
 	client.ClientId = registerResponse.ClientId
+	return nil
 }
 
-func (clinet *Client) openConnection(connId schema.ConnectionId) error {
+func (client *Client) openConnection(connId schema.ConnectionId) error {
 	conn, err := net.Dial("tcp", client.LocalAddr)
 	if err != nil {
 		return err
 	}
-
-	connId := schema.ConnectionId(common.UUID())
 
 	//read from conn, send to server
 	go func() {
@@ -83,7 +84,7 @@ func (clinet *Client) openConnection(connId schema.ConnectionId) error {
 	}()
 
 	//read from server, send to conn
-	go fund(){
+	go func(){
 		defer func(){
 			client.closeConnection(connId, conn)
 		}()
@@ -99,13 +100,15 @@ func (clinet *Client) openConnection(connId schema.ConnectionId) error {
 			}
 		}
 	}()
+
+	return nil
 }
 
 func (client *Client) closeConnection(connId schema.ConnectionId, conn net.Conn) {
 	conn.Close()
 }
 
-func (client *Clinet) sendToServer(packRequest *schema.PackRequest) error {
+func (client *Client) sendToServer(packRequest *schema.PackRequest) (err error) {
 	url := fmt.Sprintf("%s/pack?clientid=%s", client.ServerAddr, client.ClientId)
 	var data []byte
 	if data, err = packRequest.Marshal(); err == nil {
@@ -115,7 +118,7 @@ func (client *Clinet) sendToServer(packRequest *schema.PackRequest) error {
 	return err
 }
 
-func (client *Client) recvFromServer(connId schema.ConnectionId) (schema.PackResponse, error) {
+func (client *Client) recvFromServer(connId schema.ConnectionId) (*schema.PackResponse, error) {
 	url := fmt.Sprintf("%s/pack?clientid=%s", client.ServerAddr, client.ClientId)
 	packRequest := & schema.PackRequest {
 		ClientId: client.ClientId,
@@ -127,7 +130,7 @@ func (client *Client) recvFromServer(connId schema.ConnectionId) (schema.PackRes
 		rep, err1 := client.query(url, data)
 		if err1 == nil {
 			packResponse := & schema.PackResponse{}
-			if err2 = packResponse.Unmarshal(rep); err2 == nil {
+			if err2 := packResponse.Unmarshal(rep); err2 == nil {
 				return packResponse, nil
 			}
 		}
@@ -143,6 +146,7 @@ func (client *Client) cmdHandler(pack *schema.PackResponse) {
 }
 
 func (client *Client) recvCmdFromServer() error {
+	url := fmt.Sprintf("%s/pack?clientid=%s", client.ServerAddr, client.ClientId)
 	for {
 		packRequest := & schema.PackRequest {
 			ClientId: client.ClientId,
@@ -151,9 +155,9 @@ func (client *Client) recvCmdFromServer() error {
 
 		if data, err := packRequest.Marshal(); err == nil {
 			if data, err = client.query(url, data); err == nil {
-				packResponse := & schema.PackResponse
+				packResponse := & schema.PackResponse {}
 				if err = packResponse.Unmarshal(data); err == nil {
-					client.cmdHandler(packResponse.Content)
+					client.cmdHandler(packResponse)
 				}
 			}
 		}
