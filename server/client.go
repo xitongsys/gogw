@@ -114,9 +114,10 @@ func (client *Client) openConnection(conn net.Conn) {
 
 		for {
 			pack, ok := <- fromChann
-			logger.Debug("from client", *pack)
-
+			
 			if ok {
+				logger.Debug("from client", *pack)
+				
 				_, err := io.WriteString(conn, pack.Content)
 				if err != nil {
 					return
@@ -127,6 +128,12 @@ func (client *Client) openConnection(conn net.Conn) {
 }
 
 func (client *Client) closeConnection(connId schema.ConnectionId, conn net.Conn) {
+	defer func(){
+		if err := recover(); err != nil {
+			logger.Warn(err)
+		}
+	}()
+
 	conn.Close()
 	close(client.ToClientChanns[connId])
 	close(client.FromClientChanns[connId])
