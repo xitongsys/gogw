@@ -2,10 +2,11 @@ package server
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 
-	"gogw/common/schema"
 	"gogw/common"
+	"gogw/common/schema"
 	"gogw/logger"
 )
 
@@ -16,47 +17,61 @@ type Server struct {
 }
 
 func NewServer(serverAddr string) *Server {
-	return & Server{
+	return &Server{
 		ServerAddr: serverAddr,
-		Clients: make(map[schema.ClientId]*Client),
+		Clients:    make(map[schema.ClientId]*Client),
 	}
 }
 
+func (server *Server) checkPort(port int) error {
+	l, err := net.Listen("tcp4", fmt.Sprintf("0.0.0.0:%v", port))
+	if err != nil {
+		return err
+	}
+	l.Close()
+	return nil
+}
+
 func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) {
-	if ps, ok := req.URL.Query()["port"]; ok && len(ps[0])>0{
+	if ps, ok := req.URL.Query()["port"]; ok && len(ps[0]) > 0 {
 		clientId := schema.ClientId(common.UUID())
 		var port int
 		fmt.Sscanf(ps[0], "%d", &port)
 
-		client := NewClient(clientId, port)
-		server.Clients[clientId] = client
+		err := server.checkPort(port)
 
-		if err := client.Start(); err != nil {
-			logger.Error(err)
-			delete(server.Clients, clientId)
-		}
-
-		registerResponse := & schema.RegisterResponse {
+		registerResponse := &schema.RegisterResponse{
 			ClientId: clientId,
-			Code: schema.SUCCESS,
+			Code:     schema.SUCCESS,
 		}
 
-		if data, err1 := registerResponse.Marshal(); err1 != nil {
-			logger.Error(err1)
-			delete(server.Clients, clientId)
-		}else{
-			if _, err2 := w.Write(data); err2 != nil {
-				logger.Error(err2)
-				delete(server.Clients, clientId)
+		if err == nil {
+			client := NewClient(clientId, port)
+			server.Clients[clientId] = client
+	
+			if err = client.Start(); err == nil {
+				var data []byte
+				if data, err = registerResponse.Marshal(); err == nil {
+					_, err = w.Write(data)
+				}
 			}
+		}
+
+		if err != nil {
+			delete(server.Clients, clientId)
+			registerResponse.Code = schema.FAILED
+			data, _ := registerResponse.Marshal()
+			w.Write(data)
+
+			logger.Error(err)
 		}
 	}
 }
 
 func (server *Server) packHandler(w http.ResponseWriter, req *http.Request) {
-	if cs, ok := req.URL.Query()["clientid"]; ok && len(cs[0])>0 {
+	if cs, ok := req.URL.Query()["clientid"]; ok && len(cs[0]) > 0 {
 		clientId := schema.ClientId(cs[0])
-		if client, ok := server.Clients[clientId]; ok && client != nil{
+		if client, ok := server.Clients[clientId]; ok && client != nil {
 			client.requestHandler(w, req)
 		}
 	}
