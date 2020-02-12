@@ -4,14 +4,14 @@ type ClientId string
 
 type ConnectionId string
 
-type ErrorCode int
+type ErrorCode int8
 const (
 	_ ErrorCode = iota
 	SUCCESS
 	FAILED
 )
 
-type PackType int 
+type PackType int8
 const (
 	_ PackType = iota
 	CLIENT_REQUEST_PACK
@@ -21,10 +21,6 @@ const (
 
 	SERVER_PACK
 	SERVER_CMD
-
-	OPEN
-	NORMAL
-	CLOSE
 )
 
 const (
