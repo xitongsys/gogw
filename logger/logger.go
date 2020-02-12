@@ -4,6 +4,10 @@ import (
 	"log"
 )
 
+func init(){
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+}
+
 func Error(args ...interface{}) {
 	log.Println("[ERRO]", args)
 }

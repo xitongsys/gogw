@@ -103,13 +103,14 @@ func (client *Client) openConnection(connId schema.ConnectionId) error {
 		for {
 			packResponse, err := client.recvFromServer(connId)
 
-			if err == nil {
+			if err == nil && len(packResponse) > 0 {
 
 				logger.Debug("from server", *packResponse)
 
 				_, err = io.WriteString(conn, packResponse.Content)
 
 			}
+
 			if err != nil {
 				logger.Warn(err)
 				return
@@ -122,6 +123,29 @@ func (client *Client) openConnection(connId schema.ConnectionId) error {
 
 func (client *Client) closeConnection(connId schema.ConnectionId, conn net.Conn) {
 	conn.Close()
+	err := client.sendCmdToServer(connId, schema.CMD_CLOSE_CONN)
+	if err != nil {
+		logger.Error(err)
+	}
+}
+
+func (client *Client) sendCmdToServer(connId schema.ConnectionId, cmd string) (err error) {
+	packRequest := & schema.PackRequest {
+		ClientId: client.ClientId,
+		ConnId: connId,
+		Type: schema.CLIENT_SEND_CMD,
+		Content: cmd,
+	}
+
+	var data []byte
+	if data, err = packRequest.Marshal(); err != nil {
+		logger.Error(err)
+		return err
+	}
+
+	url := fmt.Sprintf("http://%s/pack?clientid=%s", client.ServerAddr, client.ClientId)
+	_, err = client.query(url, data)
+	return err
 }
 
 func (client *Client) sendToServer(packRequest *schema.PackRequest) (err error) {
@@ -147,9 +171,6 @@ func (client *Client) recvFromServer(connId schema.ConnectionId) (*schema.PackRe
 		data, err = client.query(url, data)
 		if err == nil {
 			packResponse := & schema.PackResponse{}
-
-			logger.Debug(string(data))
-
 			if err = packResponse.Unmarshal(data); err == nil {
 				return packResponse, nil
 			}

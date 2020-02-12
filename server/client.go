@@ -21,8 +21,11 @@ type Client struct {
 	ClientId schema.ClientId
 	Port int
 	Listener net.Listener
+
 	FromClientChanns map[schema.ConnectionId]chan *schema.PackRequest
 	ToClientChanns map[schema.ConnectionId]chan *schema.PackResponse
+	Conns map[schema.ConnectionId]net.Conn
+
 	CmdToClientChann chan *schema.PackResponse
 }
 
@@ -32,6 +35,7 @@ func NewClient(clientId schema.ClientId, port int) *Client {
 		Port: port,
 		FromClientChanns: make(map[schema.ConnectionId]chan *schema.PackRequest),
 		ToClientChanns: make(map[schema.ConnectionId]chan *schema.PackResponse),
+		Conns: make(map[schema.ConnectionId]net.Conn),
 		CmdToClientChann: make(chan *schema.PackResponse),
 	}
 }
@@ -70,6 +74,7 @@ func (client *Client) openConnection(conn net.Conn) {
 	toChann, fromChann := make(chan *schema.PackResponse, BUFFSIZE), make(chan *schema.PackRequest, BUFFSIZE)
 	client.ToClientChanns[connId] = toChann
 	client.FromClientChanns[connId] = fromChann
+	client.Conns[connId] = conn
 
 	openPack := & schema.PackResponse {
 		ClientId: client.ClientId,
@@ -82,7 +87,7 @@ func (client *Client) openConnection(conn net.Conn) {
 	//read from conn, send to client
 	go func(){
 		defer func(){
-			client.closeConnection(connId, conn)
+			client.closeConnection(connId)
 		}()
 
 		bs := make([]byte, PACKSIZE)
@@ -94,9 +99,6 @@ func (client *Client) openConnection(conn net.Conn) {
 					Type: schema.NORMAL,
 					Content: string(bs[:n]),
 				}
-
-				logger.Debug("to client: ", *pack)
-
 				toChann <- pack
 
 			}else if err != nil {
@@ -109,17 +111,16 @@ func (client *Client) openConnection(conn net.Conn) {
 	//read from client, send to conn
 	go func(){
 		defer func() {
-			client.closeConnection(connId, conn)
+			client.closeConnection(connId)
 		}()
 
 		for {
 			pack, ok := <- fromChann
 			
 			if ok {
-				logger.Debug("from client", *pack)
-				
 				_, err := io.WriteString(conn, pack.Content)
 				if err != nil {
+					logger.Warn(err)
 					return
 				}
 			}
@@ -127,14 +128,16 @@ func (client *Client) openConnection(conn net.Conn) {
 	}()
 }
 
-func (client *Client) closeConnection(connId schema.ConnectionId, conn net.Conn) {
+func (client *Client) closeConnection(connId schema.ConnectionId) {
 	defer func(){
 		if err := recover(); err != nil {
 			logger.Warn(err)
 		}
 	}()
 
-	conn.Close()
+	client.Conns[connId].Close()
+	delete(client.Conns, connId)
+
 	close(client.ToClientChanns[connId])
 	close(client.FromClientChanns[connId])
 	delete(client.ToClientChanns, connId)
@@ -142,6 +145,13 @@ func (client *Client) closeConnection(connId schema.ConnectionId, conn net.Conn)
 }
 
 func (client *Client) cmdHandler(packRequest *schema.PackRequest) *schema.PackResponse {
+	switch  packRequest.Content {
+	case schema.CMD_CLOSE_CONN:
+		connId := packRequest.ConnId
+		client.closeConnection(connId)
+		
+	}
+
 	packResponse := & schema.PackResponse{}
 	return packResponse
 }
@@ -152,6 +162,8 @@ func (client *Client) requestHandler(w http.ResponseWriter, req *http.Request) {
 		logger.Error(err)
 		return
 	}
+
+	logger.Debug("from client ", string(bs))
 
 	packRequest := &schema.PackRequest{}
 	if err = packRequest.Unmarshal(bs); err != nil {
