@@ -103,7 +103,7 @@ func (client *Client) openConnection(connId schema.ConnectionId) error {
 		for {
 			packResponse, err := client.recvFromServer(connId)
 
-			if err == nil && len(packResponse) > 0 {
+			if err == nil && len(packResponse.Content) > 0 {
 
 				logger.Debug("from server", *packResponse)
 
