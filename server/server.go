@@ -82,7 +82,7 @@ func (server *Server) testHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func (server *Server) Start() {
-	logger.Info("server start")
+	logger.Info("server start:", server.ServerAddr)
 
 	http.HandleFunc("/register", server.registerHandler)
 	http.HandleFunc("/pack", server.packHandler)

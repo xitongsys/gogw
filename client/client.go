@@ -35,7 +35,8 @@ func NewClient(serverAddr string, localAddr string, remotePort int) *Client {
 }
 
 func (client *Client) Start() {
-	logger.Info("client start")
+	logger.Info(fmt.Sprintf("\nclient start\nServer: %v\nLocal: %v\nRemotePort: %v\n", client.ServerAddr, client.LocalAddr, client.RemotePort))
+
 	if err := client.register(); err != nil {
 		logger.Error(err)
 		return
