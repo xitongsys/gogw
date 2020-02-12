@@ -96,9 +96,10 @@ func (client *Client) openConnection(conn net.Conn) {
 				pack := & schema.PackResponse {
 					ClientId: client.ClientId,
 					ConnId: connId,
-					Type: schema.NORMAL,
+					Type: schema.CLIENT_SEND_PACK,
 					Content: string(bs[:n]),
 				}
+
 				toChann <- pack
 
 			}else if err != nil {
