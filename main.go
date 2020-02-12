@@ -12,6 +12,8 @@ import (
 var cfgFile = flag.String("c", "cfg.json", "")
 
 func main(){
+	logger.LEVEL = logger.INFO
+
 	logger.Info("gogw start")
 	flag.Parse()
 

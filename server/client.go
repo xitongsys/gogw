@@ -116,13 +116,16 @@ func (client *Client) openConnection(conn net.Conn) {
 
 		for {
 			pack, ok := <- fromChann
-			
+
 			if ok {
 				_, err := io.WriteString(conn, pack.Content)
 				if err != nil {
 					logger.Warn(err)
 					return
 				}
+
+			}else{
+				return
 			}
 		}
 	}()
@@ -175,12 +178,13 @@ func (client *Client) requestHandler(w http.ResponseWriter, req *http.Request) {
 		client.FromClientChanns[packRequest.ConnId] <- packRequest
 
 	}else if packRequest.Type == schema.CLIENT_REQUEST_PACK {
-		packResponse := <- client.ToClientChanns[packRequest.ConnId]
-		data, _ := packResponse.Marshal()
+		if packResponse, ok := <- client.ToClientChanns[packRequest.ConnId]; ok {
+			data, _ := packResponse.Marshal()
 
-		logger.Debug("to client", string(data))
+			logger.Debug("to client", string(data))
 
-		w.Write(data)
+			w.Write(data)
+		}
 
 	}else if packRequest.Type == schema.CLIENT_SEND_CMD {
 		packResponse := client.cmdHandler(packRequest)
