@@ -88,6 +88,9 @@ func (client *Client) openConnection(conn net.Conn) {
 	go func(){
 		defer func(){
 			client.closeConnection(connId)
+			if err := recover(); err != nil {
+				logger.Warn(err)
+			}
 		}()
 
 		bs := make([]byte, PACKSIZE)
@@ -113,6 +116,9 @@ func (client *Client) openConnection(conn net.Conn) {
 	go func(){
 		defer func() {
 			client.closeConnection(connId)
+			if err := recover(); err != nil {
+				logger.Warn(err)
+			}
 		}()
 
 		for {
@@ -161,6 +167,12 @@ func (client *Client) cmdHandler(packRequest *schema.PackRequest) *schema.PackRe
 }
 
 func (client *Client) requestHandler(w http.ResponseWriter, req *http.Request) {
+	defer func(){
+		if err := recover(); err != nil {
+			logger.Warn(err)
+		}
+	}()
+
 	bs, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		logger.Error(err)

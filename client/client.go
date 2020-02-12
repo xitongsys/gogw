@@ -69,6 +69,10 @@ func (client *Client) openConnection(connId schema.ConnectionId) error {
 	//read from conn, send to server
 	go func() {
 		defer func(){
+			if err := recover(); err != nil {
+				logger.Warn(err)
+			}
+
 			client.closeConnection(connId, conn)
 		}()
 
@@ -97,6 +101,10 @@ func (client *Client) openConnection(connId schema.ConnectionId) error {
 	//read from server, send to conn
 	go func(){
 		defer func(){
+			if err := recover(); err != nil {
+				logger.Warn(err)
+			}
+			
 			client.closeConnection(connId, conn)
 		}()
 
