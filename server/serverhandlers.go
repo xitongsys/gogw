@@ -34,6 +34,7 @@ func (server *Server) getAllInfo() *schema.AllInfo {
 	for _, client := range server.Clients {
 		cinfo := & schema.ClientInfo {
 			ClientId: client.ClientId,
+			ClientAddr: client.ClientAddr,
 			Port: client.Port,
 			ConnectionNumber: len(client.Conns),
 			UploadSpeed: client.SpeedMonitor.GetUploadSpeed(),

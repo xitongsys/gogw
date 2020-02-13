@@ -46,7 +46,7 @@ func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) 
 		}
 
 		if err == nil {
-			client := NewClient(clientId, port)
+			client := NewClient(clientId, req.RemoteAddr, port)
 			server.Clients[clientId] = client
 	
 			if err = client.Start(); err == nil {

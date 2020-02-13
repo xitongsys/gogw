@@ -19,6 +19,7 @@ const (
 
 type Client struct {
 	ClientId schema.ClientId
+	ClientAddr string
 	Port int
 	Listener net.Listener
 
@@ -31,9 +32,10 @@ type Client struct {
 	SpeedMonitor *SpeedMonitor
 }
 
-func NewClient(clientId schema.ClientId, port int) *Client {
+func NewClient(clientId schema.ClientId, clientAddr string, port int) *Client {
 	return & Client {
 		ClientId: clientId,
+		ClientAddr: clientAddr,
 		Port: port,
 		FromClientChanns: make(map[schema.ConnectionId]chan *schema.PackRequest),
 		ToClientChanns: make(map[schema.ConnectionId]chan *schema.PackResponse),
