@@ -39,6 +39,14 @@ func (w *WindowStat) Add(v interface{}) {
 		w.curCount++
 
 	}else if t.Unix() >= w.end.Unix() {
+		c := (t.Unix() - w.end.Unix())/int64(w.length.Seconds()) - int64(w.histValues.capacity)
+		if c < 0 {
+			c = 0
+		}
+
+		w.start = w.start.Add(time.Duration(c) * w.length)
+		w.end = w.end.Add(time.Duration(c) * w.length)
+
 		for t.Unix() >= w.end.Unix(){
 			w.histValues.Push(NewValueWithTime(w.curValue, w.end))
 			w.curCount, w.curValue = 0, nil
@@ -50,6 +58,7 @@ func (w *WindowStat) Add(v interface{}) {
 }
 
 func (w *WindowStat) GetLatest() (*ValueWithTime, error) {
+	w.Add(int64(0))
 	r, e := w.histValues.Back()
 	if e != nil {
 		return nil, e

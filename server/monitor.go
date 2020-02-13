@@ -31,7 +31,7 @@ func (sm *SpeedMonitor) Add(uploadSize int64, downloadSize int64) {
 
 func (sm *SpeedMonitor) GetUploadSpeed() int {
 	vs, err := sm.Upload.GetLatest()
-	if err != nil {
+	if err != nil || vs.Value == nil {
 		return 0
 	}
 	return int(vs.Value.(int64))
@@ -39,7 +39,7 @@ func (sm *SpeedMonitor) GetUploadSpeed() int {
 
 func (sm *SpeedMonitor) GetDownloadSpeed() int {
 	vs, err := sm.Download.GetLatest()
-	if err != nil {
+	if err != nil || vs.Value == nil {
 		return 0
 	}
 	return int(vs.Value.(int64))

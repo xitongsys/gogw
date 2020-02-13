@@ -77,7 +77,7 @@ func (queue *Queue) Back() (interface{}, error) {
 		return nil, EMPTYEQUEUEERROR
 	}
 
-	return queue.tail.pre, nil
+	return queue.tail.pre.value, nil
 }
 
 func (queue *Queue) Len() int {
