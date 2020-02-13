@@ -29,12 +29,20 @@ func (sm *SpeedMonitor) Add(uploadSize int64, downloadSize int64) {
 	}
 }
 
-func (sm *SpeedMonitor) GetUploadSpeed() (*statistics.ValueWithTime, error) {
-	return sm.Upload.GetLatest()
+func (sm *SpeedMonitor) GetUploadSpeed() int {
+	vs, err := sm.Upload.GetLatest()
+	if err != nil {
+		return 0
+	}
+	return int(vs.Value.(int64))
 }
 
-func (sm *SpeedMonitor) GetDownloadSpeed() (*statistics.ValueWithTime, error) {
-	return sm.Download.GetLatest()
+func (sm *SpeedMonitor) GetDownloadSpeed() int {
+	vs, err := sm.Download.GetLatest()
+	if err != nil {
+		return 0
+	}
+	return int(vs.Value.(int64))
 }
 
 

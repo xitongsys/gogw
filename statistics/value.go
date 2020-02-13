@@ -5,13 +5,13 @@ import (
 )
 
 type ValueWithTime struct {
-	timestamp time.Time
-	value     interface{}
+	Timestamp time.Time
+	Value     interface{}
 }
 
 func NewValueWithTime(v interface{}, t time.Time) *ValueWithTime {
 	return &ValueWithTime{
-		timestamp: t,
-		value:     v,
+		Timestamp: t,
+		Value:     v,
 	}
 }

@@ -77,15 +77,12 @@ func (server *Server) packHandler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (server *Server) testHandler(w http.ResponseWriter, req *http.Request) {
-	w.Write([]byte("gogw"))
-}
-
 func (server *Server) Start() {
 	logger.Info("server start:", server.ServerAddr)
 
 	http.HandleFunc("/register", server.registerHandler)
 	http.HandleFunc("/pack", server.packHandler)
 	http.HandleFunc("/test", server.testHandler)
+	http.HandleFunc("/monitor", server.monitorHandler)
 	http.ListenAndServe(server.ServerAddr, nil)
 }
