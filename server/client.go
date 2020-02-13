@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	PACKSIZE = 102400
+	PACKSIZE = 1024*1024
 	BUFFSIZE = 100
 )
 
