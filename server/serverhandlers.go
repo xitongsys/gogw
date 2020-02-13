@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"gogw/common/schema"
+	"gogw/logger"
 )
 
 func (server *Server) testHandler(w http.ResponseWriter, req *http.Request) {
@@ -15,7 +16,11 @@ func (server *Server) monitorHandler(w http.ResponseWriter, req *http.Request) {
 	if its, ok := req.URL.Query()["key"]; ok && len(its[0]) > 0 {
 		key := strings.ToLower(its[0])
 		if key == "all" {
-			
+			if data, err := server.getAllInfo().Marshal(); err == nil {
+				w.Write(data)
+			}else{
+				logger.Error(err)
+			}
 		}
 	}
 }
@@ -26,7 +31,7 @@ func (server *Server) getAllInfo() *schema.AllInfo {
 		Clients: []*schema.ClientInfo{},
 	}
 
-	for clientId, client := range server.Clients {
+	for _, client := range server.Clients {
 		cinfo := & schema.ClientInfo {
 			ClientId: client.ClientId,
 			Port: client.Port,
