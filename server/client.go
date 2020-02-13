@@ -1,15 +1,15 @@
 package server
 
 import (
-	"net"
-	"net/http"
+	"fmt"
 	"io"
 	"io/ioutil"
-	"fmt"
+	"net"
+	"net/http"
 
+	"gogw/common"
 	"gogw/common/schema"
 	"gogw/logger"
-	"gogw/common"
 )
 
 const (
@@ -27,6 +27,8 @@ type Client struct {
 	Conns map[schema.ConnectionId]net.Conn
 
 	CmdToClientChann chan *schema.PackResponse
+
+	SpeedMonitor *SpeedMonitor
 }
 
 func NewClient(clientId schema.ClientId, port int) *Client {
@@ -37,6 +39,7 @@ func NewClient(clientId schema.ClientId, port int) *Client {
 		ToClientChanns: make(map[schema.ConnectionId]chan *schema.PackResponse),
 		Conns: make(map[schema.ConnectionId]net.Conn),
 		CmdToClientChann: make(chan *schema.PackResponse),
+		SpeedMonitor: NewSpeedMonitor(),
 	}
 }
 
@@ -180,6 +183,7 @@ func (client *Client) requestHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	logger.Debug("from client ", string(bs))
+	client.SpeedMonitor.Add(-1, int64(len(bs)))
 
 	packRequest := &schema.PackRequest{}
 	if err = packRequest.Unmarshal(bs); err != nil {
@@ -195,6 +199,7 @@ func (client *Client) requestHandler(w http.ResponseWriter, req *http.Request) {
 			data, _ := packResponse.Marshal()
 
 			logger.Debug("to client", string(data))
+			client.SpeedMonitor.Add(int64(len(data)), -1)
 
 			w.Write(data)
 		}
@@ -210,6 +215,10 @@ func (client *Client) requestHandler(w http.ResponseWriter, req *http.Request) {
 		select {
 		case packResponse := <- client.CmdToClientChann:
 			if data, err := packResponse.Marshal(); err == nil {
+
+				logger.Debug("to client", string(data))
+				client.SpeedMonitor.Add(int64(len(data)), -1)
+
 				w.Write(data)
 			}
 		}
