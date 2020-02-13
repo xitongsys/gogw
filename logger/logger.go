@@ -2,6 +2,7 @@ package logger
 
 import (
 	"log"
+	"runtime/debug"
 )
 
 const (
@@ -24,6 +25,7 @@ func Error(args ...interface{}) {
 	}
 
 	log.Println("[ERRO]", args)
+	debug.PrintStack()
 }
 
 func Warn(args ...interface{}){
@@ -32,6 +34,7 @@ func Warn(args ...interface{}){
 	}
 
 	log.Println("[WARN]", args)
+	debug.PrintStack()
 }
 
 func Info(args ...interface{}){
