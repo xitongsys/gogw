@@ -33,9 +33,16 @@ function ClientList(divid){
         },
 
         HTML: function(){
-            var res = ""
+            var res = 
+                '<div class="alert alert-warning" role="alert">' + 
+                    'No clients connected.' + 
+                '</div>'
+            if(this.Clients.length > 0){
+                res = ''
+            }
+
             for(var i=0; i<this.Clients.length; i++){
-                res += "<div class='card bg-light' id='" + "itemdiv_" + i + "'></div>"
+                res += "<div style='margin:10px; padding: 10px;' class='card bg-light' id='" + "itemdiv_" + i + "'></div>"
             }
 
             return res
