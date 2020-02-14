@@ -5,7 +5,17 @@ import (
 )
 
 type RegisterRequest struct {
-	Port int
+	SourceAddr string
+	ToPort int
+	Description string
+}
+
+func (registerRequest *RegisterRequest) Marshal() ([]byte, error){
+	return json.Marshal(registerRequest)
+}
+
+func (registerRequest *RegisterRequest) Unmarshal(data []byte) error {
+	return json.Unmarshal(data, registerRequest)
 }
 
 type RegisterResponse struct {

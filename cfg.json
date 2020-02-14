@@ -3,7 +3,8 @@
 	"Client":{
 		"ServerAddr":"127.0.0.1:808",
 		"LocalAddr":"127.0.0.1:8080",
-		"RemotePort":81
+		"RemotePort":81,
+		"Description":"webservice"
 	},
 	"Server":{
 		"ServerAddr":"127.0.0.1:808"

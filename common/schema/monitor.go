@@ -21,6 +21,9 @@ type ClientInfo struct {
 	ClientId ClientId
 	ClientAddr string
 	Port int
+	SourceAddr string
+	Description string
+	
 	ConnectionNumber int
 	UploadSpeed int
 	DownloadSpeed int

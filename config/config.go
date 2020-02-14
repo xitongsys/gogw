@@ -9,6 +9,7 @@ type ClientConfig struct {
 	ServerAddr string
 	LocalAddr  string
 	RemotePort int
+	Description string
 }
 
 type ServerConfig struct {

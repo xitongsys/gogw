@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 
@@ -33,39 +34,49 @@ func (server *Server) checkPort(port int) error {
 }
 
 func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) {
-	if ps, ok := req.URL.Query()["port"]; ok && len(ps[0]) > 0 {
-		clientId := schema.ClientId(common.UUID())
-		var port int
-		fmt.Sscanf(ps[0], "%d", &port)
+	bs, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		logger.Error(err)
+		return
+	}
 
-		err := server.checkPort(port)
+	registerRequest := & schema.RegisterRequest{}
+	if err = registerRequest.Unmarshal(bs); err != nil {
+		logger.Error(err)
+		return
+	}
 
-		registerResponse := &schema.RegisterResponse{
-			ClientId: clientId,
-			Code:     schema.SUCCESS,
-		}
+	if err = server.checkPort(registerRequest.ToPort); err != nil {
+		logger.Error(err)
+		return
+	}
 
-		if err == nil {
-			client := NewClient(clientId, req.RemoteAddr, port)
-			server.Clients[clientId] = client
-	
-			if err = client.Start(); err == nil {
-				var data []byte
-				if data, err = registerResponse.Marshal(); err == nil {
-					_, err = w.Write(data)
-				}
-			}
-		}
+	clientId := schema.ClientId(common.UUID("clientid"))
 
-		if err != nil {
-			delete(server.Clients, clientId)
-			registerResponse.Code = schema.FAILED
-			data, _ := registerResponse.Marshal()
-			w.Write(data)
+	registerResponse := &schema.RegisterResponse{
+		ClientId: clientId,
+		Code:     schema.SUCCESS,
+	}
 
-			logger.Error(err)
+	client := NewClient(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Description)
+	server.Clients[clientId] = client
+
+	if err = client.Start(); err == nil {
+		var data []byte
+		if data, err = registerResponse.Marshal(); err == nil {
+			_, err = w.Write(data)
 		}
 	}
+
+	if err != nil {
+		delete(server.Clients, clientId)
+		registerResponse.Code = schema.FAILED
+		data, _ := registerResponse.Marshal()
+		w.Write(data)
+
+		logger.Error(err)
+	}
+	
 }
 
 func (server *Server) packHandler(w http.ResponseWriter, req *http.Request) {

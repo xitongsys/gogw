@@ -20,9 +20,11 @@ const (
 type Client struct {
 	ClientId schema.ClientId
 	ClientAddr string
-	Port int
-	Listener net.Listener
+	PortTo int
+	SourceAddr string
+	Description string
 
+	Listener net.Listener
 	FromClientChanns map[schema.ConnectionId]chan *schema.PackRequest
 	ToClientChanns map[schema.ConnectionId]chan *schema.PackResponse
 	Conns map[schema.ConnectionId]net.Conn
@@ -32,11 +34,13 @@ type Client struct {
 	SpeedMonitor *SpeedMonitor
 }
 
-func NewClient(clientId schema.ClientId, clientAddr string, port int) *Client {
+func NewClient(clientId schema.ClientId, clientAddr string, portTo int, sourceAddr string, description string) *Client {
 	return & Client {
 		ClientId: clientId,
 		ClientAddr: clientAddr,
-		Port: port,
+		PortTo: portTo,
+		SourceAddr: sourceAddr,
+		Description: description,
 		FromClientChanns: make(map[schema.ConnectionId]chan *schema.PackRequest),
 		ToClientChanns: make(map[schema.ConnectionId]chan *schema.PackResponse),
 		Conns: make(map[schema.ConnectionId]net.Conn),
@@ -46,7 +50,7 @@ func NewClient(clientId schema.ClientId, clientAddr string, port int) *Client {
 }
 
 func (client *Client) Start() (err error) {
-	client.Listener, err = net.Listen("tcp4", fmt.Sprintf("0.0.0.0:%d", client.Port))
+	client.Listener, err = net.Listen("tcp4", fmt.Sprintf("0.0.0.0:%d", client.PortTo))
 	if err != nil {
 		return err
 	}
@@ -75,7 +79,7 @@ func (client *Client) Stop() error {
 }
 
 func (client *Client) openConnection(conn net.Conn) {
-	connId := schema.ConnectionId(common.UUID())
+	connId := schema.ConnectionId(common.UUID("connid"))
 	toChann, fromChann := make(chan *schema.PackResponse, BUFFSIZE), make(chan *schema.PackRequest, BUFFSIZE)
 	client.ToClientChanns[connId] = toChann
 	client.FromClientChanns[connId] = fromChann

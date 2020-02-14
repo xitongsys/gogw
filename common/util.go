@@ -2,17 +2,15 @@ package common
 
 import (
 	"fmt"
-	
-	"github.com/google/uuid"
 )
 
-var ID = 0
+var UUIDMAP map[string]int = make(map[string]int)
 
-func UUID() string {
-	ID++
-	return fmt.Sprint(ID)
-}
+func UUID(key string) string {
+	if _, ok := UUIDMAP[key]; !ok {
+		UUIDMAP[key] = 0
+	}
 
-func UUID0() string {
-	return uuid.New().String()
+	UUIDMAP[key]++
+	return fmt.Sprint(UUIDMAP[key])
 }

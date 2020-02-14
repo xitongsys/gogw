@@ -35,7 +35,9 @@ func (server *Server) getAllInfo() *schema.AllInfo {
 		cinfo := & schema.ClientInfo {
 			ClientId: client.ClientId,
 			ClientAddr: client.ClientAddr,
-			Port: client.Port,
+			Port: client.PortTo,
+			SourceAddr: client.SourceAddr,
+			Description: client.Description,
 			ConnectionNumber: len(client.Conns),
 			UploadSpeed: client.SpeedMonitor.GetUploadSpeed(),
 			DownloadSpeed: client.SpeedMonitor.GetDownloadSpeed(),

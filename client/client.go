@@ -23,19 +23,23 @@ type Client struct {
 	LocalAddr  string
 	RemotePort int
 
+	Description string
+
 	ClientId schema.ClientId
 }
 
-func NewClient(serverAddr string, localAddr string, remotePort int) *Client {
+func NewClient(serverAddr string, localAddr string, remotePort int, description string) *Client {
 	return &Client{
 		ServerAddr: serverAddr,
 		LocalAddr:  localAddr,
 		RemotePort: remotePort,
+		Description: description,
 	}
 }
 
 func (client *Client) Start() {
-	logger.Info(fmt.Sprintf("\nclient start\nServer: %v\nLocal: %v\nRemotePort: %v\n", client.ServerAddr, client.LocalAddr, client.RemotePort))
+	logger.Info(fmt.Sprintf("\nclient start\nServer: %v\nLocal: %v\nRemotePort: %v\nDescription: %v\n", 
+	client.ServerAddr, client.LocalAddr, client.RemotePort, client.Description))
 
 	if err := client.register(); err != nil {
 		logger.Error(err)
@@ -46,8 +50,19 @@ func (client *Client) Start() {
 }
 
 func (client *Client) register() error {
-	url := fmt.Sprintf("http://%s/register?port=%d", client.ServerAddr, client.RemotePort)
-	data, err := client.query(url, nil)
+	url := fmt.Sprintf("http://%s/register", client.ServerAddr)
+	registerRequest := & schema.RegisterRequest {
+		SourceAddr: client.LocalAddr,
+		ToPort: client.RemotePort,
+		Description: client.Description,
+	}
+
+	data, err := registerRequest.Marshal()
+	if err != nil {
+		return err
+	}
+
+	data, err = client.query(url, data)
 	if err != nil {
 		return err
 	}
