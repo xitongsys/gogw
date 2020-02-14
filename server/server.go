@@ -124,7 +124,7 @@ func (server *Server) packHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func (server *Server) Start() {
-	logger.Info(fmt.Sprintf("\nclient start\nAddr: %v\nTimeoutSecond: %v\n", server.ServerAddr, int(server.TimeoutSecond.Seconds())))
+	logger.Info(fmt.Sprintf("\nserver start\nAddr: %v\nTimeoutSecond: %v\n", server.ServerAddr, int(server.TimeoutSecond.Seconds())))
 
 	http.HandleFunc("/register", server.registerHandler)
 	http.HandleFunc("/pack", server.packHandler)
