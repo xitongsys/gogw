@@ -95,7 +95,7 @@ function Client(divid){
         FreshChart: function(){
             var ctx = document.getElementById('canvas_' + this.ClientId).getContext('2d');
             var chart = new Chart(ctx, this.ChartConfig)
-            //this.FirstFresh = false
+
             this.ChartConfig.data.datasets[0].data = this.UploadSpeed
             this.ChartConfig.data.datasets[1].data = this.DownloadSpeed 
             uploadSpeed = this.UploadSpeed[this.UploadSpeed.length - 1]

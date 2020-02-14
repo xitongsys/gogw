@@ -8,7 +8,17 @@ function ClientList(divid){
         },
 
         Update: function(clients){
-            var cmap = {}
+            var cmap = {}, cmapnew = {}
+            for(var i=0; i<clients.length; i++){
+                cmapnew[clients[i].ClientId] = i
+            }
+            leftClients = []
+            for(var i=0; i<this.Clients.length; i++){
+                if(this.Clients[i].ClientId in cmapnew){
+                    leftClients.push(this.Clients[i])
+                }
+            }
+            this.Clients = leftClients
             for(var i=0; i<this.Clients.length; i++){
                 cmap[this.Clients[i].ClientId] = i
             }
@@ -19,9 +29,12 @@ function ClientList(divid){
                     this.Clients.push(Client(""))
                     var idx = this.Clients.length - 1
                     cmap[c.ClientId] = idx
-                    this.Clients[idx].SetDiv("itemdiv_" + idx)
                 }
+
+                var idx = cmap[c.ClientId]
+                this.Clients[idx].SetDiv("itemdiv_" + idx)
             }
+
 
             document.getElementById(this.DivId).innerHTML = this.HTML()
 
