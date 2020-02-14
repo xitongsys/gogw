@@ -18,25 +18,29 @@ function ClientList(divid){
                     leftClients.push(this.Clients[i])
                 }
             }
-            this.Clients = leftClients
-            for(var i=0; i<this.Clients.length; i++){
-                cmap[this.Clients[i].ClientId] = i
-            }
-
-            for(var i=0; i<clients.length; i++){
-                var c = clients[i]
-                if(!(c.ClientId in cmap)){
-                    this.Clients.push(Client(""))
-                    var idx = this.Clients.length - 1
-                    cmap[c.ClientId] = idx
+            
+            if(leftClients.length != this.Clients.length){
+                this.Clients = leftClients
+                for(var i=0; i<this.Clients.length; i++){
+                    cmap[this.Clients[i].ClientId] = i
                 }
 
-                var idx = cmap[c.ClientId]
-                this.Clients[idx].SetDiv("itemdiv_" + idx)
+                for(var i=0; i<clients.length; i++){
+                    var c = clients[i]
+                    if(!(c.ClientId in cmap)){
+                        this.Clients.push(Client(""))
+                        var idx = this.Clients.length - 1
+                        cmap[c.ClientId] = idx
+                    }
+
+                    var idx = cmap[c.ClientId]
+                    this.Clients[idx].SetDiv("itemdiv_" + idx)
+                }
+
+
+                document.getElementById(this.DivId).innerHTML = this.HTML()
+
             }
-
-
-            document.getElementById(this.DivId).innerHTML = this.HTML()
 
             for(var i=0; i<clients.length; i++){
                 var c = clients[i]
