@@ -1,14 +1,14 @@
 {
 	"Role":"server",
 	"Client":{
-		"ServerAddr":"127.0.0.1:808",
+		"ServerAddr":"127.0.0.1:80",
 		"LocalAddr":"127.0.0.1:8080",
 		"RemotePort":81,
 		"Description":"webservice",
 		"TimeoutSecond": 30
 	},
 	"Server":{
-		"ServerAddr":"127.0.0.1:808",
+		"ServerAddr":"127.0.0.1:80",
 		"TimeoutSecond": 30
 	}
 }

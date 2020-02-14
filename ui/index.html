@@ -10,38 +10,22 @@
 
 <div id="clients"></div>
 <script>
-    var clients = []
-    for(var i=0; i<20; i++){
-        clients.push( 
-            {
-                ClientId: "" + i,
-                ClientAddr: "000",
-                Port: 120,
-                SourceAddr: "source",
-                Description: "description",
-
-                ConnectionNumber: 0,
-                UploadSpeed: 100,
-                DownloadSpeed: 200,
-            }
-        )
-    }
-
-    var clientList = ClientList("clients")
-    clientList.Update(clients)
+var clientList = ClientList("clients")
 
 function getData(){
-	var xhttp = new XMLHttpRequest();
+	var xhttp = new XMLHttpRequest()
 	xhttp.onreadystatechange = function(){
 		if(this.readyState == 4 && this.status == 200){
-			alert(this.responseText);
+            infos = JSON.parse(this.responseText)
+            console.log(infos)
+            clientList.Update(infos.Clients)
 		}
 	};
-	xhttp.open("GET", "http://127.0.0.1:808/monitor?key=all", true);
+	xhttp.open("GET", URL_GET_ALLINFO, true);
 	xhttp.send();
 }
 
-
+getData()
 
 </script>
 </body>

@@ -130,7 +130,7 @@ func (server *Server) Start() {
 	http.HandleFunc("/pack", server.packHandler)
 	http.HandleFunc("/heartbeat", server.heartbeatHandler)
 	http.HandleFunc("/monitor", server.monitorHandler)
-	http.Handle("/ui", http.FileServer(http.Dir("./")))
+	http.Handle("/ui/", http.StripPrefix("/ui/", http.FileServer(http.Dir("./ui"))))
 
 	//cleaner
 	go func() {
