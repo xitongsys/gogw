@@ -15,6 +15,40 @@ function Client(divid){
 
         Capacity: CLIENT_CAPACITY,
 
+        ChartConfig: {
+            // The type of chart we want to create
+            type: 'line',
+        
+            // The data for our dataset
+            data: {
+                labels: new Array(CLIENT_CAPACITY),
+                datasets: 
+                [
+                    {
+                        label: 'Upload Speed',
+                        backgroundColor: 'rgb(0, 255, 128)',
+                        borderColor: 'rgb(0, 255, 128)',
+                        data: this.UploadSpeed,
+                        fill: false
+                    },
+                    {
+                        label: 'Download Speed',
+                        backgroundColor: 'rgb(0, 128, 255)',
+                        borderColor: 'rgb(0, 128, 255)',
+                        data: this.DownloadSpeed,
+                        fill: false
+                    }
+                ]
+            },
+        
+            // Configuration options go here
+            options: {
+                animation: {
+                    duration: 0
+                }
+            }
+        },
+
         SetDiv: function(divid){
             this.DivId = divid
         },
@@ -33,6 +67,7 @@ function Client(divid){
 
             while(this.UploadSpeed.length > this.capacity){
                 this.UploadSpeed.shift()
+                console.log(this.UploadSpeed)
             }
 
             while(this.DownloadSpeed.length > this.capacity){
@@ -45,35 +80,11 @@ function Client(divid){
 
         FreshChart: function(){
             var ctx = document.getElementById('canvas_' + this.ClientId).getContext('2d');
-            var chart = new Chart(ctx, {
-                // The type of chart we want to create
-                type: 'line',
-            
-                // The data for our dataset
-                data: {
-                    labels: new Array(CLIENT_CAPACITY),
-                    datasets: 
-                    [
-                        {
-                            label: 'Upload Speed',
-                            backgroundColor: 'rgb(0, 255, 128)',
-                            borderColor: 'rgb(0, 255, 128)',
-                            data: this.UploadSpeed,
-                            fill: false
-                        },
-                        {
-                            label: 'Download Speed',
-                            backgroundColor: 'rgb(0, 128, 255)',
-                            borderColor: 'rgb(0, 128, 255)',
-                            data: this.DownloadSpeed,
-                            fill: false
-                        }
-                    ]
-                },
-            
-                // Configuration options go here
-                options: {}
-            });
+            var chart = new Chart(ctx, this.ChartConfig)
+            //this.FirstFresh = false
+            this.ChartConfig.data.datasets[0].data = this.UploadSpeed
+            this.ChartConfig.data.datasets[1].data = this.DownloadSpeed 
+
         },
 
         HTML: function(){

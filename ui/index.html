@@ -22,7 +22,9 @@ function getData(){
 		}
 	};
 	xhttp.open("GET", URL_GET_ALLINFO, true);
-	xhttp.send();
+    xhttp.send();
+
+    window.setTimeout(getData, 1000);
 }
 
 getData()
