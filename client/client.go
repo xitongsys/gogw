@@ -50,12 +50,13 @@ func (client *Client) Start() {
 	//start heartbeat
 	go client.heartbeat()
 
+	//recv cmd from server (new conn)
 	go client.recvCmdFromServer()
 
 	for {
 		if err := client.register(); err != nil {
 			logger.Error(err)
-			time.Sleep(5 * time.Second)
+			time.Sleep(2 * time.Second)
 			continue
 		}
 
@@ -65,14 +66,14 @@ func (client *Client) Start() {
 				logger.Error("timeout")
 				break
 			}
-			time.Sleep(1 * time.Second)
+			time.Sleep(2 * time.Second)
 		}
 	}
 }
 
 func (client *Client) register() error {
 	client.ClientId = schema.ClientId("")
-	
+
 	url := fmt.Sprintf("http://%s/register", client.ServerAddr)
 	registerRequest := & schema.RegisterRequest {
 		SourceAddr: client.LocalAddr,
@@ -96,6 +97,7 @@ func (client *Client) register() error {
 	}
 
 	client.ClientId = registerResponse.ClientId
+	client.LastHeartbeat = time.Now()
 	return nil
 }
 
