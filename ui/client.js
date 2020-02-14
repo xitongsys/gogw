@@ -1,5 +1,15 @@
 MSG_FRESH_CHART = "fresh_chart_"
 
+function SpeedToReadable(s){
+    if(s <= 1024){
+        return s + " B/s"
+    }else if(s < 1024 * 1024){
+        return (s/1024.0).toFixed(2) + " KB/s"
+    }else{
+        return (s/1024.0/1024.0).toFixed(2) + " MB/s"
+    }
+}
+
 function Client(divid){
     return {
         DivId: divid,
@@ -10,8 +20,8 @@ function Client(divid){
         Description: "",
 
         ConnectionNumber: 0,
-        UploadSpeed: [0,0,0],
-        DownloadSpeed: [0,0,0],
+        UploadSpeed: [0],
+        DownloadSpeed: [0],
 
         Capacity: CLIENT_CAPACITY,
 
@@ -25,24 +35,29 @@ function Client(divid){
                 datasets: 
                 [
                     {
-                        label: 'Upload Speed',
+                        label: 'up: ',
                         backgroundColor: 'rgb(0, 255, 128)',
                         borderColor: 'rgb(0, 255, 128)',
                         data: this.UploadSpeed,
-                        fill: false
+                        fill: false,
+                        borderWidth: 1,
+                        pointRadius: 1
                     },
                     {
-                        label: 'Download Speed',
+                        label: 'down: ',
                         backgroundColor: 'rgb(0, 128, 255)',
                         borderColor: 'rgb(0, 128, 255)',
                         data: this.DownloadSpeed,
-                        fill: false
+                        fill: false,
+                        borderWidth: 1,
+                        pointRadius: 1
                     }
                 ]
             },
         
-            // Configuration options go here
             options: {
+                responsive: true,
+                maintainAspectRatio: false,
                 animation: {
                     duration: 0
                 }
@@ -65,12 +80,11 @@ function Client(divid){
             this.UploadSpeed.push(us)
             this.DownloadSpeed.push(ds)
 
-            while(this.UploadSpeed.length > this.capacity){
+            while(this.UploadSpeed.length > this.Capacity){
                 this.UploadSpeed.shift()
-                console.log(this.UploadSpeed)
             }
 
-            while(this.DownloadSpeed.length > this.capacity){
+            while(this.DownloadSpeed.length > this.Capacity){
                 this.DownloadSpeed.shift()
             }
 
@@ -84,46 +98,49 @@ function Client(divid){
             //this.FirstFresh = false
             this.ChartConfig.data.datasets[0].data = this.UploadSpeed
             this.ChartConfig.data.datasets[1].data = this.DownloadSpeed 
-
+            uploadSpeed = this.UploadSpeed[this.UploadSpeed.length - 1]
+            downloadSpeed = this.DownloadSpeed[this.DownloadSpeed.length - 1]
+            this.ChartConfig.data.datasets[0].label = "up: " + SpeedToReadable(uploadSpeed)
+            this.ChartConfig.data.datasets[1].label = "down: " + SpeedToReadable(downloadSpeed)
         },
 
         HTML: function(){
             var res = 
             '<div class="row">' +
-                '<div class="col-sm-6">' +
+                '<div class="col-sm-4">' +
                     '<div class="row">' +
-                        '<div class="col-sm-4">ClientId </div>' +
+                        '<div class="col-sm-4"><h6>ClientId:</h6></div>' +
                         '<div class="col-sm-8">' + this.ClientId + '</div>' +
                     '</div>' +
                     
                     '<div class="row">' +
-                        '<div class="col-sm-4">ClientAddr </div>' +
+                        '<div class="col-sm-4"><h6>ClientAddr:</h6></div>' +
                         '<div class="col-sm-8">' + this.ClientAddr + '</div>' + 
                     '</div>' +
 
                     '<div class="row">' +
-                        '<div class="col-sm-4">SourceAddr </div>' +
+                        '<div class="col-sm-4"><h6>SourceAddr:</h6></div>' +
                         '<div class="col-sm-8">' + this.SourceAddr + '</div>' + 
                     '</div>' +
 
                     '<div class="row">' +
-                        '<div class="col-sm-4">PortTo </div>' +
+                        '<div class="col-sm-4"><h6>PortTo:</h6></div>' +
                         '<div class="col-sm-8">' + this.Port + '</div>' + 
                     '</div>' +
 
                     '<div class="row">' +
-                        '<div class="col-sm-4">Description </div>' +
+                        '<div class="col-sm-4"><h6>Description:</h6></div>' +
                         '<div class="col-sm-8">' + this.Description + '</div>' + 
                     '</div>' +
 
                     '<div class="row">' +
-                        '<div class="col-sm-4">' + this.ConnectionNumber + '</div>' +
-                        '<div class="col-sm-4">' + this.UploadSpeed[this.UploadSpeed.length-1] + '</div>' + 
-                        '<div class="col-sm-4">' + this.DownloadSpeed[this.DownloadSpeed.length-1] + '</div>' + 
+                        '<div class="col-sm-4"><h6>Connections:</h6></div>' +
+                        '<div class="col-sm-8">' + this.ConnectionNumber + '</div>' + 
                     '</div>' +
+
                 '</div>' + 
 
-                '<div class="col-sm-6">' +
+                '<div class="col-sm-8">' +
                     '<canvas id="' + 'canvas_' + this.ClientId + '"></canvas>' +
                 '</div>' +
             '</div>' 

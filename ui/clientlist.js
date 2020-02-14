@@ -35,7 +35,7 @@ function ClientList(divid){
         HTML: function(){
             var res = ""
             for(var i=0; i<this.Clients.length; i++){
-                res += "<row id='" + "itemdiv_" + i + "'></row>"
+                res += "<div class='card bg-light' id='" + "itemdiv_" + i + "'></div>"
             }
 
             return res
