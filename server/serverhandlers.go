@@ -14,7 +14,7 @@ func (server *Server) heartbeatHandler(w http.ResponseWriter, req *http.Request)
 		clientId := schema.ClientId(cs[0])
 		if client, ok := server.Clients[clientId]; ok {
 			client.LastHeartbeat = time.Now()
-			w.Write([]byte("gogw ok"))
+			w.Write([]byte("ok"))
 		}
 	}
 }

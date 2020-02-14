@@ -10,11 +10,12 @@ type ClientConfig struct {
 	LocalAddr  string
 	RemotePort int
 	Description string
+	TimeoutSecond int
 }
 
 type ServerConfig struct {
 	ServerAddr string
-	ClientTimeoutSecond int
+	TimeoutSecond int
 }
 
 type Config struct {

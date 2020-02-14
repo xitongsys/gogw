@@ -15,17 +15,17 @@ import (
 
 type Server struct {
 	ServerAddr string
-	ClientTimeoutSecond time.Duration
+	TimeoutSecond time.Duration
 
 	Lock sync.Mutex
 	Clients map[schema.ClientId]*Client
 }
 
-func NewServer(serverAddr string, clientTimeoutSecond int) *Server {
+func NewServer(serverAddr string, timeoutSecond int) *Server {
 	return &Server{
 		ServerAddr: serverAddr,
 		Clients:    make(map[schema.ClientId]*Client),
-		ClientTimeoutSecond: time.Duration(clientTimeoutSecond) * time.Second,
+		TimeoutSecond: time.Duration(timeoutSecond) * time.Second,
 	}
 }
 
@@ -36,7 +36,7 @@ func (server *Server) cleaner() {
 	t := time.Now()
 	shouldDelete := []schema.ClientId{}
 	for clientId, client := range server.Clients {
-		if t.Sub(client.LastHeartbeat).Milliseconds() > server.ClientTimeoutSecond.Milliseconds() {
+		if t.Sub(client.LastHeartbeat).Milliseconds() > server.TimeoutSecond.Milliseconds() {
 			shouldDelete = append(shouldDelete, clientId)
 			client.Stop()
 		}
@@ -115,7 +115,7 @@ func (server *Server) packHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func (server *Server) Start() {
-	logger.Info("server start:", server.ServerAddr)
+	logger.Info(fmt.Sprintf("\nclient start\nAddr: %v\nTimeoutSecond: %v\n", server.ServerAddr, int(server.TimeoutSecond.Seconds())))
 
 	http.HandleFunc("/register", server.registerHandler)
 	http.HandleFunc("/pack", server.packHandler)

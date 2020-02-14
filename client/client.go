@@ -25,32 +25,54 @@ type Client struct {
 	RemotePort int
 
 	Description string
+	TimeoutSecond time.Duration
 
+	LastHeartbeat time.Time
 	ClientId schema.ClientId
 }
 
-func NewClient(serverAddr string, localAddr string, remotePort int, description string) *Client {
+func NewClient(serverAddr string, localAddr string, remotePort int, description string, timeoutSecond int) *Client {
 	return &Client{
 		ServerAddr: serverAddr,
 		LocalAddr:  localAddr,
 		RemotePort: remotePort,
 		Description: description,
+		TimeoutSecond: time.Duration(timeoutSecond) * time.Second,
+		LastHeartbeat: time.Now(),
+		ClientId: "",
 	}
 }
 
 func (client *Client) Start() {
-	logger.Info(fmt.Sprintf("\nclient start\nServer: %v\nLocal: %v\nRemotePort: %v\nDescription: %v\n", 
-	client.ServerAddr, client.LocalAddr, client.RemotePort, client.Description))
+	logger.Info(fmt.Sprintf("\nclient start\nServer: %v\nLocal: %v\nRemotePort: %v\nDescription: %v\nTimeoutSecond: %v\n", 
+	client.ServerAddr, client.LocalAddr, client.RemotePort, client.Description, int(client.TimeoutSecond.Seconds())))
 
-	if err := client.register(); err != nil {
-		logger.Error(err)
-		return
+	//start heartbeat
+	go client.heartbeat()
+
+	go client.recvCmdFromServer()
+
+	for {
+		if err := client.register(); err != nil {
+			logger.Error(err)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		for {
+			t := time.Now()
+			if t.Sub(client.LastHeartbeat).Milliseconds() > client.TimeoutSecond.Milliseconds() {
+				logger.Error("timeout")
+				break
+			}
+			time.Sleep(1 * time.Second)
+		}
 	}
-
-	client.recvCmdFromServer()
 }
 
 func (client *Client) register() error {
+	client.ClientId = schema.ClientId("")
+	
 	url := fmt.Sprintf("http://%s/register", client.ServerAddr)
 	registerRequest := & schema.RegisterRequest {
 		SourceAddr: client.LocalAddr,
@@ -82,16 +104,6 @@ func (client *Client) openConnection(connId schema.ConnectionId) error {
 	if err != nil {
 		return err
 	}
-
-	go func(){
-		for {
-			if err := client.heartbeat(); err != nil {
-				logger.Error(err)
-			}
-
-			time.Sleep(3 * time.Second)
-		}
-	}()
 
 	//read from conn, send to server
 	go func() {
@@ -220,29 +232,45 @@ func (client *Client) cmdHandler(pack *schema.PackResponse) {
 	}
 }
 
+//recv open conn cmd
 func (client *Client) recvCmdFromServer() error {
-	url := fmt.Sprintf("http://%s/pack?clientid=%s", client.ServerAddr, client.ClientId)
 	for {
-		packRequest := &schema.PackRequest{
-			ClientId: client.ClientId,
-			Type:     schema.CLIENT_REQUEST_CMD,
-		}
+		if client.ClientId != "" {
+			url := fmt.Sprintf("http://%s/pack?clientid=%s", client.ServerAddr, client.ClientId)
+			packRequest := &schema.PackRequest{
+				ClientId: client.ClientId,
+				Type:     schema.CLIENT_REQUEST_CMD,
+			}
 
-		if data, err := packRequest.Marshal(); err == nil {
-			if data, err = client.query(url, data); err == nil {
-				packResponse := &schema.PackResponse{}
-				if err = packResponse.Unmarshal(data); err == nil {
-					client.cmdHandler(packResponse)
+			if data, err := packRequest.Marshal(); err == nil {
+				if data, err = client.query(url, data); err == nil {
+					packResponse := &schema.PackResponse{}
+					if err = packResponse.Unmarshal(data); err == nil {
+						client.cmdHandler(packResponse)
+					}
 				}
 			}
+
+		}else{
+			time.Sleep(time.Second)
 		}
 	}
 }
 
-func (client *Client) heartbeat() error {
-	url := fmt.Sprintf("http://%s/heartbeat?clientid=%s", client.ServerAddr, client.ClientId)
-	_, err := client.query(url, nil)
-	return err
+func (client *Client) heartbeat() {
+	for {
+		if client.ClientId != "" {
+			url := fmt.Sprintf("http://%s/heartbeat?clientid=%s", client.ServerAddr, client.ClientId)
+			data, err := client.query(url, nil)
+			if string(data) == "ok" {
+				client.LastHeartbeat = time.Now()
+			}
+			if err != nil {
+				logger.Error(err)
+			}
+		}
+		time.Sleep(3 * time.Second)
+	}
 }
 
 

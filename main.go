@@ -24,12 +24,12 @@ func main(){
 	}
 
 	if cfg.Role == "server" {
-		server := server.NewServer(cfg.Server.ServerAddr, cfg.Server.ClientTimeoutSecond)
+		server := server.NewServer(cfg.Server.ServerAddr, cfg.Server.TimeoutSecond)
 		server.Start()
 	}
 
 	if cfg.Role == "client" {
-		client := client.NewClient(cfg.Client.ServerAddr, cfg.Client.LocalAddr, cfg.Client.RemotePort, cfg.Client.Description)
+		client := client.NewClient(cfg.Client.ServerAddr, cfg.Client.LocalAddr, cfg.Client.RemotePort, cfg.Client.Description, cfg.Client.TimeoutSecond)
 		client.Start()
 	}
 }

@@ -4,10 +4,11 @@
 		"ServerAddr":"127.0.0.1:808",
 		"LocalAddr":"127.0.0.1:8080",
 		"RemotePort":81,
-		"Description":"webservice"
+		"Description":"webservice",
+		"TimeoutSecond": 30
 	},
 	"Server":{
 		"ServerAddr":"127.0.0.1:808",
-		"ClientTimeoutSecond": 30
+		"TimeoutSecond": 30
 	}
 }
