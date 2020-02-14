@@ -14,17 +14,17 @@ import (
 )
 
 type Server struct {
-	ServerAddr string
+	ServerAddr    string
 	TimeoutSecond time.Duration
 
-	Lock sync.Mutex
+	Lock    sync.Mutex
 	Clients map[schema.ClientId]*Client
 }
 
 func NewServer(serverAddr string, timeoutSecond int) *Server {
 	return &Server{
-		ServerAddr: serverAddr,
-		Clients:    make(map[schema.ClientId]*Client),
+		ServerAddr:    serverAddr,
+		Clients:       make(map[schema.ClientId]*Client),
 		TimeoutSecond: time.Duration(timeoutSecond) * time.Second,
 	}
 }
@@ -40,7 +40,7 @@ func (server *Server) cleaner() {
 			shouldDelete = append(shouldDelete, clientId)
 			client.Stop()
 		}
-	} 
+	}
 
 	for _, clientId := range shouldDelete {
 		delete(server.Clients, clientId)
@@ -63,7 +63,7 @@ func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	registerRequest := & schema.RegisterRequest{}
+	registerRequest := &schema.RegisterRequest{}
 	if err = registerRequest.Unmarshal(bs); err != nil {
 		logger.Error(err)
 		return
@@ -72,7 +72,7 @@ func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) 
 	if registerRequest.ToPort <= 0 {
 		for registerRequest.ToPort = 1000; registerRequest.ToPort < 65535; registerRequest.ToPort++ {
 			if server.checkPort(registerRequest.ToPort) == nil {
-				break;
+				break
 			}
 		}
 	}
@@ -86,7 +86,7 @@ func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) 
 
 	registerResponse := &schema.RegisterResponse{
 		ClientId: clientId,
-		ToPort: registerRequest.ToPort,
+		ToPort:   registerRequest.ToPort,
 		Code:     schema.SUCCESS,
 	}
 
@@ -111,7 +111,7 @@ func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) 
 
 		logger.Error(err)
 	}
-	
+
 }
 
 func (server *Server) packHandler(w http.ResponseWriter, req *http.Request) {
@@ -130,9 +130,10 @@ func (server *Server) Start() {
 	http.HandleFunc("/pack", server.packHandler)
 	http.HandleFunc("/heartbeat", server.heartbeatHandler)
 	http.HandleFunc("/monitor", server.monitorHandler)
-	
+	http.Handle("/ui", http.FileServer(http.Dir("./")))
+
 	//cleaner
-	go func(){
+	go func() {
 		for {
 			server.cleaner()
 			time.Sleep(time.Second * 30)

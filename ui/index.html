@@ -1,0 +1,48 @@
+<html>
+    <head>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+    </head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+<script src="config.js"></script>
+<script src="client.js"></script>
+<script src="clientlist.js"></script>
+
+<div id="clients"></div>
+<script>
+    var clients = []
+    for(var i=0; i<20; i++){
+        clients.push( 
+            {
+                ClientId: "" + i,
+                ClientAddr: "000",
+                Port: 120,
+                SourceAddr: "source",
+                Description: "description",
+
+                ConnectionNumber: 0,
+                UploadSpeed: 100,
+                DownloadSpeed: 200,
+            }
+        )
+    }
+
+    var clientList = ClientList("clients")
+    clientList.Update(clients)
+
+function getData(){
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function(){
+		if(this.readyState == 4 && this.status == 200){
+			alert(this.responseText);
+		}
+	};
+	xhttp.open("GET", "http://127.0.0.1:808/monitor?key=all", true);
+	xhttp.send();
+}
+
+
+
+</script>
+</body>
+</html>
