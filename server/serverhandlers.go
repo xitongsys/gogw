@@ -3,13 +3,20 @@ package server
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"gogw/common/schema"
 	"gogw/logger"
 )
 
-func (server *Server) testHandler(w http.ResponseWriter, req *http.Request) {
-	w.Write([]byte("gogw"))
+func (server *Server) heartbeatHandler(w http.ResponseWriter, req *http.Request) {
+	if cs, ok := req.URL.Query()["clientid"]; ok && len(cs[0]) > 0 {
+		clientId := schema.ClientId(cs[0])
+		if client, ok := server.Clients[clientId]; ok {
+			client.LastHeartbeat = time.Now()
+			w.Write([]byte("gogw ok"))
+		}
+	}
 }
 
 func (server *Server) monitorHandler(w http.ResponseWriter, req *http.Request) {

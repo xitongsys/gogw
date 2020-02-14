@@ -24,7 +24,7 @@ func main(){
 	}
 
 	if cfg.Role == "server" {
-		server := server.NewServer(cfg.Server.ServerAddr)
+		server := server.NewServer(cfg.Server.ServerAddr, cfg.Server.ClientTimeoutSecond)
 		server.Start()
 	}
 

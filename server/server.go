@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"sync"
+	"time"
 
 	"gogw/common"
 	"gogw/common/schema"
@@ -13,14 +15,35 @@ import (
 
 type Server struct {
 	ServerAddr string
+	ClientTimeoutSecond time.Duration
 
+	Lock sync.Mutex
 	Clients map[schema.ClientId]*Client
 }
 
-func NewServer(serverAddr string) *Server {
+func NewServer(serverAddr string, clientTimeoutSecond int) *Server {
 	return &Server{
 		ServerAddr: serverAddr,
 		Clients:    make(map[schema.ClientId]*Client),
+		ClientTimeoutSecond: time.Duration(clientTimeoutSecond) * time.Second,
+	}
+}
+
+func (server *Server) cleaner() {
+	server.Lock.Lock()
+	defer server.Lock.Unlock()
+
+	t := time.Now()
+	shouldDelete := []schema.ClientId{}
+	for clientId, client := range server.Clients {
+		if t.Sub(client.LastHeartbeat).Milliseconds() > server.ClientTimeoutSecond.Milliseconds() {
+			shouldDelete = append(shouldDelete, clientId)
+			client.Stop()
+		}
+	} 
+
+	for _, clientId := range shouldDelete {
+		delete(server.Clients, clientId)
 	}
 }
 
@@ -59,6 +82,9 @@ func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) 
 	}
 
 	client := NewClient(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Description)
+
+	server.Lock.Lock()
+	defer server.Lock.Unlock()
 	server.Clients[clientId] = client
 
 	if err = client.Start(); err == nil {
@@ -93,7 +119,16 @@ func (server *Server) Start() {
 
 	http.HandleFunc("/register", server.registerHandler)
 	http.HandleFunc("/pack", server.packHandler)
-	http.HandleFunc("/test", server.testHandler)
+	http.HandleFunc("/heartbeat", server.heartbeatHandler)
 	http.HandleFunc("/monitor", server.monitorHandler)
+	
+	//cleaner
+	go func(){
+		for {
+			server.cleaner()
+			time.Sleep(time.Second * 30)
+		}
+	}()
+
 	http.ListenAndServe(server.ServerAddr, nil)
 }

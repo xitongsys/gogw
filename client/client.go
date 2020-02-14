@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"time"
 
 	"gogw/common/schema"
 	"gogw/logger"
@@ -81,6 +82,16 @@ func (client *Client) openConnection(connId schema.ConnectionId) error {
 	if err != nil {
 		return err
 	}
+
+	go func(){
+		for {
+			if err := client.heartbeat(); err != nil {
+				logger.Error(err)
+			}
+
+			time.Sleep(3 * time.Second)
+		}
+	}()
 
 	//read from conn, send to server
 	go func() {
@@ -227,6 +238,14 @@ func (client *Client) recvCmdFromServer() error {
 		}
 	}
 }
+
+func (client *Client) heartbeat() error {
+	url := fmt.Sprintf("http://%s/heartbeat?clientid=%s", client.ServerAddr, client.ClientId)
+	_, err := client.query(url, nil)
+	return err
+}
+
+
 
 func (client *Client) query(url string, body []byte) ([]byte, error) {
 	rep, err := http.Post(url, "application/json", bytes.NewBuffer(body))

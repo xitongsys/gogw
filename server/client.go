@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"time"
 
 	"gogw/common"
 	"gogw/common/schema"
@@ -32,6 +33,7 @@ type Client struct {
 	CmdToClientChann chan *schema.PackResponse
 
 	SpeedMonitor *SpeedMonitor
+	LastHeartbeat time.Time
 }
 
 func NewClient(clientId schema.ClientId, clientAddr string, portTo int, sourceAddr string, description string) *Client {
@@ -46,6 +48,7 @@ func NewClient(clientId schema.ClientId, clientAddr string, portTo int, sourceAd
 		Conns: make(map[schema.ConnectionId]net.Conn),
 		CmdToClientChann: make(chan *schema.PackResponse),
 		SpeedMonitor: NewSpeedMonitor(),
+		LastHeartbeat: time.Now(),
 	}
 }
 

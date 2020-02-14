@@ -14,6 +14,7 @@ type ClientConfig struct {
 
 type ServerConfig struct {
 	ServerAddr string
+	ClientTimeoutSecond int
 }
 
 type Config struct {
