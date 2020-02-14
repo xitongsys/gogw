@@ -98,6 +98,7 @@ func (client *Client) register() error {
 
 	client.ClientId = registerResponse.ClientId
 	client.LastHeartbeat = time.Now()
+	client.RemotePort = registerResponse.ToPort
 	return nil
 }
 

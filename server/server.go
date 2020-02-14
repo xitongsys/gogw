@@ -69,6 +69,14 @@ func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 
+	if registerRequest.ToPort <= 0 {
+		for registerRequest.ToPort = 1000; registerRequest.ToPort < 65535; registerRequest.ToPort++ {
+			if server.checkPort(registerRequest.ToPort) == nil {
+				break;
+			}
+		}
+	}
+
 	if err = server.checkPort(registerRequest.ToPort); err != nil {
 		logger.Error(err)
 		return
@@ -78,6 +86,7 @@ func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) 
 
 	registerResponse := &schema.RegisterResponse{
 		ClientId: clientId,
+		ToPort: registerRequest.ToPort,
 		Code:     schema.SUCCESS,
 	}
 

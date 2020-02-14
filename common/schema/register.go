@@ -20,6 +20,7 @@ func (registerRequest *RegisterRequest) Unmarshal(data []byte) error {
 
 type RegisterResponse struct {
 	ClientId ClientId
+	ToPort int
 	Code ErrorCode
 }
 
