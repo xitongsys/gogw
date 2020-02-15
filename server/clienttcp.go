@@ -37,7 +37,7 @@ func NewClientTCP(clientId schema.ClientId, clientAddr string, portTo int, sourc
 		ClientId: clientId,
 		ClientAddr: clientAddr,
 		PortTo: portTo,
-		Protocol: "tcp4",
+		Protocol: "tcp",
 		SourceAddr: sourceAddr,
 		Description: description,
 		FromClientChanns: make(map[schema.ConnectionId]chan *schema.PackRequest),
@@ -50,7 +50,7 @@ func NewClientTCP(clientId schema.ClientId, clientAddr string, portTo int, sourc
 }
 
 func (client *ClientTCP) Start() (err error) {
-	client.Listener, err = net.Listen("tcp4", fmt.Sprintf("0.0.0.0:%d", client.PortTo))
+	client.Listener, err = net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", client.PortTo))
 	if err != nil {
 		return err
 	}

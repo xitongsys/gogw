@@ -43,6 +43,7 @@ func (server *Server) getAllInfo() *schema.AllInfo {
 			ClientId: client.GetClientId(),
 			ClientAddr: client.GetClientAddr(),
 			Port: client.GetPortTo(),
+			Protocol: client.GetProtocol(),
 			SourceAddr: client.GetSourceAddr(),
 			Description: client.GetDescription(),
 			ConnectionNumber: client.GetConnectionNumber(),

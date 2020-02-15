@@ -21,6 +21,7 @@ type ClientInfo struct {
 	ClientId ClientId
 	ClientAddr string
 	Port int
+	Protocol string
 	SourceAddr string
 	Description string
 	

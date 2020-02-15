@@ -9,6 +9,7 @@ type ClientConfig struct {
 	ServerAddr string
 	LocalAddr  string
 	RemotePort int
+	Protocol string
 	Description string
 	TimeoutSecond int
 }

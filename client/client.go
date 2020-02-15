@@ -24,6 +24,8 @@ type Client struct {
 	LocalAddr  string
 	RemotePort int
 
+	Protocol string
+
 	Description string
 	TimeoutSecond time.Duration
 
@@ -31,11 +33,12 @@ type Client struct {
 	ClientId schema.ClientId
 }
 
-func NewClient(serverAddr string, localAddr string, remotePort int, description string, timeoutSecond int) *Client {
+func NewClient(serverAddr string, localAddr string, remotePort int, protocol string, description string, timeoutSecond int) *Client {
 	return &Client{
 		ServerAddr: serverAddr,
 		LocalAddr:  localAddr,
 		RemotePort: remotePort,
+		Protocol: protocol,
 		Description: description,
 		TimeoutSecond: time.Duration(timeoutSecond) * time.Second,
 		LastHeartbeat: time.Now(),
@@ -44,8 +47,8 @@ func NewClient(serverAddr string, localAddr string, remotePort int, description 
 }
 
 func (client *Client) Start() {
-	logger.Info(fmt.Sprintf("\nclient start\nServer: %v\nLocal: %v\nRemotePort: %v\nDescription: %v\nTimeoutSecond: %v\n", 
-	client.ServerAddr, client.LocalAddr, client.RemotePort, client.Description, int(client.TimeoutSecond.Seconds())))
+	logger.Info(fmt.Sprintf("\nclient start\nServer: %v\nLocal: %v\nRemotePort: %v\nProtocol: %v\nDescription: %v\nTimeoutSecond: %v\n", 
+	client.ServerAddr, client.LocalAddr, client.RemotePort, client.Protocol, client.Description, int(client.TimeoutSecond.Seconds())))
 
 	//start heartbeat
 	go client.heartbeat()
@@ -78,6 +81,7 @@ func (client *Client) register() error {
 	registerRequest := & schema.RegisterRequest {
 		SourceAddr: client.LocalAddr,
 		ToPort: client.RemotePort,
+		Protocol: client.Protocol,
 		Description: client.Description,
 	}
 
@@ -103,7 +107,9 @@ func (client *Client) register() error {
 }
 
 func (client *Client) openConnection(connId schema.ConnectionId) error {
-	conn, err := net.Dial("tcp", client.LocalAddr)
+	var conn net.Conn
+	var err error
+	conn, err = net.Dial(client.Protocol, client.LocalAddr)
 	if err != nil {
 		return err
 	}

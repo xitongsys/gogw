@@ -29,7 +29,7 @@ func main(){
 	}
 
 	if cfg.Role == "client" {
-		client := client.NewClient(cfg.Client.ServerAddr, cfg.Client.LocalAddr, cfg.Client.RemotePort, cfg.Client.Description, cfg.Client.TimeoutSecond)
+		client := client.NewClient(cfg.Client.ServerAddr, cfg.Client.LocalAddr, cfg.Client.RemotePort, cfg.Client.Protocol, cfg.Client.Description, cfg.Client.TimeoutSecond)
 		client.Start()
 	}
 }

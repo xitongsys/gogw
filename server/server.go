@@ -48,8 +48,8 @@ func (server *Server) cleaner() {
 }
 
 func (server *Server) checkPort(port int, protocol string) error {
-	if protocol == "tcp4" {
-		l, err := net.Listen("tcp4", fmt.Sprintf("0.0.0.0:%v", port))
+	if protocol == "tcp" {
+		l, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%v", port))
 		if err != nil {
 			return err
 		}
@@ -102,7 +102,7 @@ func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) 
 	}
 
 	var client Client
-	if registerRequest.Protocol == "tcp4" {
+	if registerRequest.Protocol == "tcp" {
 		client = NewClientTCP(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Description)
 	}else if registerRequest.Protocol == "udp" {
 		client = NewClientUDP(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Description)
