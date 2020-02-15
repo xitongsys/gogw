@@ -67,20 +67,25 @@ func (client *ClientUDP) Start() (err error) {
 				continue
 			}
 
-			key := remoteAddr.String()
-			if connId, ok := client.AddrToConn[key]; ok {
-				pack := & schema.PackResponse {
-					ClientId: client.ClientId,
-					ConnId: connId,
-					Type: schema.CLIENT_SEND_PACK,
-					Content: string(bs[:n]),
-				}
+			pack := & schema.PackResponse {
+				ClientId: client.ClientId,
+				Type: schema.CLIENT_SEND_PACK,
+				Content: string(bs[:n]),
+			}
 
-				client.ToClientChanns[connId] <- pack
+			var connId schema.ConnectionId
+
+			key := remoteAddr.String()
+			if v, ok := client.AddrToConn[key]; ok {
+				connId = v
 
 			}else{
 				client.openConnection(key)
+				connId = client.AddrToConn[key]
 			}
+
+			pack.ConnId = connId
+			client.ToClientChanns[connId] <- pack
 		}
 	}()
 
