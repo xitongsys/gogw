@@ -1,5 +1,4 @@
 {
-	"Role":"server",
 	"Client":{
 		"ServerAddr":"127.0.0.1:80",
 		"LocalAddr":"127.0.0.1:8080",

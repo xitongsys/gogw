@@ -20,7 +20,6 @@ type ServerConfig struct {
 }
 
 type Config struct {
-	Role string
 	Client ClientConfig
 	Server ServerConfig
 }

@@ -9,10 +9,12 @@ import (
 	"gogw/client"
 )
 
-var cfgFile = flag.String("c", "cfg.json", "")
+var cfgFile = flag.String("c", "cfg.json", "config file")
+var role = flag.String("r", "server", "role")
+var logLevel = flag.String("l", "info", "log level")
 
 func main(){
-	logger.LEVEL = logger.DEBUG
+	logger.LEVEL = logger.INFO
 
 	logger.Info("gogw start")
 	flag.Parse()
@@ -23,12 +25,16 @@ func main(){
 		return
 	}
 
-	if cfg.Role == "server" {
+	if *logLevel == "debug" {
+		logger.LEVEL = logger.DEBUG
+	}
+
+	if *role == "server" {
 		server := server.NewServer(cfg.Server.ServerAddr, cfg.Server.TimeoutSecond)
 		server.Start()
 	}
 
-	if cfg.Role == "client" {
+	if *role == "client" {
 		client := client.NewClient(cfg.Client.ServerAddr, cfg.Client.LocalAddr, cfg.Client.RemotePort, cfg.Client.Protocol, cfg.Client.Description, cfg.Client.TimeoutSecond)
 		client.Start()
 	}
