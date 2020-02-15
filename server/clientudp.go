@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -13,7 +12,7 @@ import (
 	"gogw/logger"
 )
 
-type ClientTCP struct {
+type ClientUDP struct {
 	ClientId schema.ClientId
 	ClientAddr string
 	PortTo int
@@ -21,10 +20,13 @@ type ClientTCP struct {
 	SourceAddr string
 	Description string
 
-	Listener net.Listener
+	Listener *net.UDPConn
 	FromClientChanns map[schema.ConnectionId]chan *schema.PackRequest
 	ToClientChanns map[schema.ConnectionId]chan *schema.PackResponse
-	Conns map[schema.ConnectionId]net.Conn
+
+	AddrToConn map[string]schema.ConnectionId
+	ConnToAddr map[schema.ConnectionId]string
+
 
 	CmdToClientChann chan *schema.PackResponse
 
@@ -32,119 +34,41 @@ type ClientTCP struct {
 	LastHeartbeat time.Time
 }
 
-func NewClientTCP(clientId schema.ClientId, clientAddr string, portTo int, sourceAddr string, description string) *ClientTCP {
-	return & ClientTCP {
+func NewClientUDP(clientId schema.ClientId, clientAddr string, portTo int, sourceAddr string, description string) *ClientUDP {
+	return & ClientUDP {
 		ClientId: clientId,
 		ClientAddr: clientAddr,
 		PortTo: portTo,
-		Protocol: "tcp4",
+		Protocol: "udp",
 		SourceAddr: sourceAddr,
 		Description: description,
 		FromClientChanns: make(map[schema.ConnectionId]chan *schema.PackRequest),
 		ToClientChanns: make(map[schema.ConnectionId]chan *schema.PackResponse),
-		Conns: make(map[schema.ConnectionId]net.Conn),
+		ConnToAddr: make(map[schema.ConnectionId]string),
+		AddrToConn: make(map[string]schema.ConnectionId),
 		CmdToClientChann: make(chan *schema.PackResponse),
 		SpeedMonitor: NewSpeedMonitor(),
 		LastHeartbeat: time.Now(),
 	}
 }
 
-func (client *ClientTCP) Start() (err error) {
-	client.Listener, err = net.Listen("tcp4", fmt.Sprintf("0.0.0.0:%d", client.PortTo))
+func (client *ClientUDP) Start() (err error) {
+	client.Listener, err = net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("0.0.0.0"), Port: client.PortTo})
 	if err != nil {
 		return err
 	}
 	
 	go func() {
-		for {
-			conn, err := client.Listener.Accept()
-			if err != nil {
-				logger.Warn(err)
-				return
-			}
-
-			client.openConnection(conn)
-		}
-	}()
-
-	return nil
-}
-
-func (client *ClientTCP) Stop() error {
-	if client.Listener == nil {
-		return nil
-	}
-	
-	return client.Listener.Close()
-}
-
-func (client *ClientTCP) GetClientId() schema.ClientId {
-	return client.ClientId
-}
-
-func (client *ClientTCP) GetClientAddr() string {
-	return client.ClientAddr
-}
-
-func (client *ClientTCP) GetPortTo() int {
-	return client.PortTo
-}
-
-func (client *ClientTCP) GetProtocol() string {
-	return client.Protocol
-}
-
-func (client *ClientTCP) GetSourceAddr() string {
-	return client.SourceAddr
-}
-
-func (client *ClientTCP) GetDescription() string {
-	return client.Description
-}
-
-func (client *ClientTCP) GetConnectionNumber() int {
-	return len(client.Conns)
-}
-
-func (client *ClientTCP) GetSpeedMonitor() *SpeedMonitor {
-	return client.SpeedMonitor
-}
-
-func (client *ClientTCP) GetLastHeartbeat() time.Time {
-	return client.LastHeartbeat
-}
-
-func (client *ClientTCP) SetLastHeartbeat(t time.Time) {
-	client.LastHeartbeat = t
-}
-
-func (client *ClientTCP) openConnection(conn net.Conn) {
-	connId := schema.ConnectionId(common.UUID("connid"))
-	toChann, fromChann := make(chan *schema.PackResponse, BUFFSIZE), make(chan *schema.PackRequest, BUFFSIZE)
-	client.ToClientChanns[connId] = toChann
-	client.FromClientChanns[connId] = fromChann
-	client.Conns[connId] = conn
-
-	openPack := & schema.PackResponse {
-		ClientId: client.ClientId,
-		ConnId: connId,
-		Type: schema.SERVER_CMD,
-		Content: schema.CMD_OPEN_CONN,
-	}
-	client.CmdToClientChann <- openPack
-
-	//read from conn, send to client
-	go func(){
-		defer func(){
-			client.closeConnection(connId)
-			if err := recover(); err != nil {
-				logger.Warn(err)
-			}
-		}()
-
 		bs := make([]byte, PACKSIZE)
 		for {
-			if n, err := conn.Read(bs); err == nil && n > 0 {
+			n, remoteAddr, err := client.Listener.ReadFromUDP(bs)
+			if err != nil {
+				logger.Error(err)
+				continue
+			}
+
+			key := remoteAddr.String()
+			if connId, ok := client.AddrToConn[key]; ok {
 				pack := & schema.PackResponse {
 					ClientId: client.ClientId,
 					ConnId: connId,
@@ -152,14 +76,81 @@ func (client *ClientTCP) openConnection(conn net.Conn) {
 					Content: string(bs[:n]),
 				}
 
-				toChann <- pack
+				client.ToClientChanns[connId] <- pack
 
-			}else if err != nil {
-				logger.Warn(err)
-				return
+			}else{
+				client.openConnection(key)
 			}
 		}
 	}()
+
+	return nil
+}
+
+func (client *ClientUDP) Stop() error {
+	if client.Listener == nil {
+		return nil
+	}
+	
+	return client.Listener.Close()
+}
+
+func (client *ClientUDP) GetClientId() schema.ClientId {
+	return client.ClientId
+}
+
+func (client *ClientUDP) GetClientAddr() string {
+	return client.ClientAddr
+}
+
+func (client *ClientUDP) GetPortTo() int {
+	return client.PortTo
+}
+
+func (client *ClientUDP) GetProtocol() string {
+	return client.Protocol
+}
+
+func (client *ClientUDP) GetSourceAddr() string {
+	return client.SourceAddr
+}
+
+func (client *ClientUDP) GetDescription() string {
+	return client.Description
+}
+
+func (client *ClientUDP) GetConnectionNumber() int {
+	return len(client.ConnToAddr)
+}
+
+func (client *ClientUDP) GetSpeedMonitor() *SpeedMonitor {
+	return client.SpeedMonitor
+}
+
+func (client *ClientUDP) GetLastHeartbeat() time.Time {
+	return client.LastHeartbeat
+}
+
+func (client *ClientUDP) SetLastHeartbeat(t time.Time) {
+	client.LastHeartbeat = t
+}
+
+func (client *ClientUDP) openConnection(remoteAddr string) {
+	connId := schema.ConnectionId(common.UUID("connid"))
+	toChann, fromChann := make(chan *schema.PackResponse, BUFFSIZE), make(chan *schema.PackRequest, BUFFSIZE)
+	client.ToClientChanns[connId] = toChann
+	client.FromClientChanns[connId] = fromChann
+	client.ConnToAddr[connId] = remoteAddr
+	client.AddrToConn[remoteAddr] = connId
+
+	openPack := & schema.PackResponse {
+		ClientId: client.ClientId,
+		ConnId: connId,
+		Type: schema.SERVER_CMD,
+		Content: schema.CMD_OPEN_CONN,
+	}
+
+	client.CmdToClientChann <- openPack
 
 	//read from client, send to conn
 	go func(){
@@ -174,7 +165,7 @@ func (client *ClientTCP) openConnection(conn net.Conn) {
 			pack, ok := <- fromChann
 
 			if ok {
-				_, err := io.WriteString(conn, pack.Content)
+				_, err := io.WriteString(client.Listener, pack.Content)
 				if err != nil {
 					logger.Warn(err)
 					return
@@ -187,15 +178,16 @@ func (client *ClientTCP) openConnection(conn net.Conn) {
 	}()
 }
 
-func (client *ClientTCP) closeConnection(connId schema.ConnectionId) {
+func (client *ClientUDP) closeConnection(connId schema.ConnectionId) {
 	defer func(){
 		if err := recover(); err != nil {
 			logger.Warn(err)
 		}
 	}()
-
-	client.Conns[connId].Close()
-	delete(client.Conns, connId)
+	
+	remoteAddr := client.ConnToAddr[connId]
+	delete(client.ConnToAddr, connId)
+	delete(client.AddrToConn, remoteAddr)
 
 	close(client.ToClientChanns[connId])
 	close(client.FromClientChanns[connId])
@@ -203,7 +195,7 @@ func (client *ClientTCP) closeConnection(connId schema.ConnectionId) {
 	delete(client.FromClientChanns, connId)
 }
 
-func (client *ClientTCP) cmdHandler(packRequest *schema.PackRequest) *schema.PackResponse {
+func (client *ClientUDP) cmdHandler(packRequest *schema.PackRequest) *schema.PackResponse {
 	switch  packRequest.Content {
 	case schema.CMD_CLOSE_CONN:
 		connId := packRequest.ConnId
@@ -215,7 +207,7 @@ func (client *ClientTCP) cmdHandler(packRequest *schema.PackRequest) *schema.Pac
 	return packResponse
 }
 
-func (client *ClientTCP) RequestHandler(w http.ResponseWriter, req *http.Request) {
+func (client *ClientUDP) RequestHandler(w http.ResponseWriter, req *http.Request) {
 	defer func(){
 		if err := recover(); err != nil {
 			logger.Warn(err)

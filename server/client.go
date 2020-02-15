@@ -6,6 +6,11 @@ import (
 	"time"
 )
 
+const (
+	PACKSIZE = 1024*1024
+	BUFFSIZE = 100
+)
+
 type Client interface {
 	Start() error 
 	Stop() error

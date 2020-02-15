@@ -47,13 +47,24 @@ func (server *Server) cleaner() {
 	}
 }
 
-func (server *Server) checkPort(port int) error {
-	l, err := net.Listen("tcp4", fmt.Sprintf("0.0.0.0:%v", port))
-	if err != nil {
-		return err
+func (server *Server) checkPort(port int, protocol string) error {
+	if protocol == "tcp4" {
+		l, err := net.Listen("tcp4", fmt.Sprintf("0.0.0.0:%v", port))
+		if err != nil {
+			return err
+		}
+		l.Close()
+		return nil
+	}else if protocol == "udp" {
+		l, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("0.0.0.0"), Port: port})
+		if err != nil {
+			return err
+		}
+		l.Close()
+		return nil
 	}
-	l.Close()
-	return nil
+
+	return fmt.Errorf("unsupport protocol: %v", protocol)
 }
 
 func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) {
@@ -71,13 +82,13 @@ func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) 
 
 	if registerRequest.ToPort <= 0 {
 		for registerRequest.ToPort = 1000; registerRequest.ToPort < 65535; registerRequest.ToPort++ {
-			if server.checkPort(registerRequest.ToPort) == nil {
+			if server.checkPort(registerRequest.ToPort, registerRequest.Protocol) == nil {
 				break
 			}
 		}
 	}
 
-	if err = server.checkPort(registerRequest.ToPort); err != nil {
+	if err = server.checkPort(registerRequest.ToPort, registerRequest.Protocol); err != nil {
 		logger.Error(err)
 		return
 	}
@@ -90,7 +101,12 @@ func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) 
 		Code:     schema.SUCCESS,
 	}
 
-	client := NewClientTCP(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Description)
+	var client Client
+	if registerRequest.Protocol == "tcp4" {
+		client = NewClientTCP(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Description)
+	}else if registerRequest.Protocol == "udp" {
+		client = NewClientUDP(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Description)
+	}
 
 	server.Lock.Lock()
 	defer server.Lock.Unlock()

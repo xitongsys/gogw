@@ -7,6 +7,7 @@ import (
 type RegisterRequest struct {
 	SourceAddr string
 	ToPort int
+	Protocol string
 	Description string
 }
 
