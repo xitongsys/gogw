@@ -88,6 +88,9 @@ function Client(divid){
                 this.DownloadSpeed.shift()
             }
 
+            //var dom = new DOMParser().parseFromString(this.HTML(), "text/html")
+            //document.getElementById(this.DivId).appendChild(a.childNodes[0])  
+            //var divDom = document.getElementById(this.DivId).childNodes[0] = dom          
             document.getElementById(this.DivId).innerHTML = this.HTML()
             this.FreshChart()
         },
