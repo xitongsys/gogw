@@ -10,8 +10,8 @@ import (
 )
 
 var cfgFile = flag.String("c", "cfg.json", "config file")
-var role = flag.String("r", "server", "role")
-var logLevel = flag.String("l", "info", "log level")
+var role = flag.String("r", "server", "role: server/client")
+var logLevel = flag.String("l", "info", "log level: info/debug")
 
 func main(){
 	logger.LEVEL = logger.INFO
