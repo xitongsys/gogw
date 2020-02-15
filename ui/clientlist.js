@@ -50,6 +50,10 @@ function ClientList(divid){
                 }
             }
 
+            if(this.Clients.length == 0){
+                divDom.innerHTML = this.HTMLNoItem()
+            }
+
             for(var i=0; i<clients.length; i++){
                 var c = clients[i]
                 var ci = cmap[c.ClientId]
