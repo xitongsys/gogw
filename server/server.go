@@ -18,13 +18,13 @@ type Server struct {
 	TimeoutSecond time.Duration
 
 	Lock    sync.Mutex
-	Clients map[schema.ClientId]*Client
+	Clients map[schema.ClientId]Client
 }
 
 func NewServer(serverAddr string, timeoutSecond int) *Server {
 	return &Server{
 		ServerAddr:    serverAddr,
-		Clients:       make(map[schema.ClientId]*Client),
+		Clients:       make(map[schema.ClientId]Client),
 		TimeoutSecond: time.Duration(timeoutSecond) * time.Second,
 	}
 }
@@ -36,7 +36,7 @@ func (server *Server) cleaner() {
 	t := time.Now()
 	shouldDelete := []schema.ClientId{}
 	for clientId, client := range server.Clients {
-		if t.Sub(client.LastHeartbeat).Milliseconds() > server.TimeoutSecond.Milliseconds() {
+		if t.Sub(client.GetLastHeartbeat()).Milliseconds() > server.TimeoutSecond.Milliseconds() {
 			shouldDelete = append(shouldDelete, clientId)
 			client.Stop()
 		}
@@ -90,7 +90,7 @@ func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) 
 		Code:     schema.SUCCESS,
 	}
 
-	client := NewClient(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Description)
+	client := NewClientTCP(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Description)
 
 	server.Lock.Lock()
 	defer server.Lock.Unlock()
@@ -118,7 +118,7 @@ func (server *Server) packHandler(w http.ResponseWriter, req *http.Request) {
 	if cs, ok := req.URL.Query()["clientid"]; ok && len(cs[0]) > 0 {
 		clientId := schema.ClientId(cs[0])
 		if client, ok := server.Clients[clientId]; ok && client != nil {
-			client.requestHandler(w, req)
+			client.RequestHandler(w, req)
 		}
 	}
 }

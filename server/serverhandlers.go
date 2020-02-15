@@ -13,7 +13,7 @@ func (server *Server) heartbeatHandler(w http.ResponseWriter, req *http.Request)
 	if cs, ok := req.URL.Query()["clientid"]; ok && len(cs[0]) > 0 {
 		clientId := schema.ClientId(cs[0])
 		if client, ok := server.Clients[clientId]; ok {
-			client.LastHeartbeat = time.Now()
+			client.SetLastHeartbeat(time.Now())
 			w.Write([]byte("ok"))
 		}
 	}
@@ -40,14 +40,14 @@ func (server *Server) getAllInfo() *schema.AllInfo {
 
 	for _, client := range server.Clients {
 		cinfo := & schema.ClientInfo {
-			ClientId: client.ClientId,
-			ClientAddr: client.ClientAddr,
-			Port: client.PortTo,
-			SourceAddr: client.SourceAddr,
-			Description: client.Description,
-			ConnectionNumber: len(client.Conns),
-			UploadSpeed: client.SpeedMonitor.GetUploadSpeed(),
-			DownloadSpeed: client.SpeedMonitor.GetDownloadSpeed(),
+			ClientId: client.GetClientId(),
+			ClientAddr: client.GetClientAddr(),
+			Port: client.GetPortTo(),
+			SourceAddr: client.GetSourceAddr(),
+			Description: client.GetDescription(),
+			ConnectionNumber: client.GetConnectionNumber(),
+			UploadSpeed: client.GetSpeedMonitor().GetUploadSpeed(),
+			DownloadSpeed: client.GetSpeedMonitor().GetDownloadSpeed(),
 		}
 
 		allInfo.Clients = append(allInfo.Clients, cinfo)
