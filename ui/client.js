@@ -16,6 +16,7 @@ function Client(divid){
         ClientId: "0",
         ClientAddr: "",
         Port: 0,
+        Protocol: "",
         SourceAddr: "",
         Description: "",
 
@@ -72,6 +73,7 @@ function Client(divid){
             this.ClientId = c.ClientId
             this.ClientAddr = c.ClientAddr
             this.Port = c.Port
+            this.Protocol = c.Protocol
             this.SourceAddr = c.SourceAddr
             this.Description = c.Description
 
@@ -124,6 +126,11 @@ function Client(divid){
                     '<div class="row">' +
                         '<div class="col-sm-4"><h6>SourceAddr:</h6></div>' +
                         '<div class="col-sm-8">' + this.SourceAddr + '</div>' + 
+                    '</div>' +
+
+                    '<div class="row">' +
+                    '<div class="col-sm-4"><h6>Protocol:</h6></div>' +
+                    '<div class="col-sm-8">' + this.Protocol + '</div>' + 
                     '</div>' +
 
                     '<div class="row">' +
