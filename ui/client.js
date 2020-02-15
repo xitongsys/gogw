@@ -37,21 +37,21 @@ function Client(divid){
                 [
                     {
                         label: 'up: ',
-                        backgroundColor: 'rgb(0, 255, 128)',
+                        backgroundColor: 'rgb(0, 255, 128, 0.3)',
                         borderColor: 'rgb(0, 255, 128)',
                         data: this.UploadSpeed,
-                        fill: false,
-                        borderWidth: 1,
-                        pointRadius: 1
+                        fill: true,
+                        borderWidth: 2,
+                        pointRadius: 0
                     },
                     {
                         label: 'down: ',
-                        backgroundColor: 'rgb(0, 128, 255)',
+                        backgroundColor: 'rgb(0, 128, 255, 0.3)',
                         borderColor: 'rgb(0, 128, 255)',
                         data: this.DownloadSpeed,
-                        fill: false,
-                        borderWidth: 1,
-                        pointRadius: 1
+                        fill: true,
+                        borderWidth: 2,
+                        pointRadius: 0
                     }
                 ]
             },
@@ -61,7 +61,29 @@ function Client(divid){
                 maintainAspectRatio: false,
                 animation: {
                     duration: 0
-                }
+                },
+
+                layout: {
+                    padding: {
+                        left: 0,
+                        right: 0,
+                        top: 0,
+                        bottom: 0
+                    }
+                },
+
+                scales: {
+					yAxes: [{
+						display: true,
+						scaleLabel: {
+							display: true,
+							labelString: 'B/s'
+                        },
+                        ticks: {
+                            min: 0
+                        }
+                    }]
+				}
             }
         },
 
