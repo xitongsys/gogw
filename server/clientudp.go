@@ -1,7 +1,6 @@
 package server
 
 import (
-	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -170,7 +169,14 @@ func (client *ClientUDP) openConnection(remoteAddr string) {
 			pack, ok := <- fromChann
 
 			if ok {
-				_, err := io.WriteString(client.Listener, pack.Content)
+				var addr *net.UDPAddr
+				var err error
+
+				if addr, err = net.ResolveUDPAddr("udp", client.ConnToAddr[connId]); err == nil {
+					_, err = client.Listener.WriteToUDP([]byte(pack.Content), addr)
+				}
+
+				//_, err := io.WriteString(client.Listener, pack.Content)
 				if err != nil {
 					logger.Warn(err)
 					return
