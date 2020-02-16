@@ -35,7 +35,7 @@ func main(){
 	}
 
 	if *role == "client" {
-		client := client.NewClientReverse(cfg.Client.ServerAddr, cfg.Client.LocalAddr, cfg.Client.RemotePort, cfg.Client.Protocol, cfg.Client.Description, cfg.Client.TimeoutSecond)
+		client := client.NewClientReverse(cfg.Client.ServerAddr, cfg.Client.SourceAddr, cfg.Client.ToPort, cfg.Client.Protocol, cfg.Client.Description, cfg.Client.TimeoutSecond)
 		client.Start()
 	}
 }

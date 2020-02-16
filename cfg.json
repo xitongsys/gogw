@@ -1,8 +1,8 @@
 {
 	"Client":{
 		"ServerAddr":"127.0.0.1:80",
-		"LocalAddr":"127.0.0.1:8080",
-		"RemotePort":81,
+		"SourceAddr":"127.0.0.1:8080",
+		"ToPort":81,
 		"Protocol": "tcp",
 		"Description":"webservice",
 		"TimeoutSecond": 30

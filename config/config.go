@@ -7,8 +7,8 @@ import (
 
 type ClientConfig struct {
 	ServerAddr string
-	LocalAddr  string
-	RemotePort int
+	SourceAddr  string
+	ToPort int
 	Protocol string
 	Description string
 	TimeoutSecond int
