@@ -21,10 +21,11 @@ type Client struct {
 	FromClientChanns map[schema.ConnectionId]chan *schema.PackRequest
 	ToClientChanns map[schema.ConnectionId]chan *schema.PackResponse
 	CmdToClientChann chan *schema.PackResponse
-	CmdFromClientChann chan *schema.PackRequest
 
 	SpeedMonitor *SpeedMonitor
 	LastHeartbeat time.Time
+
+	CmdHandler func(packRequest *schema.PackRequest) *schema.PackResponse
 }
 
 
@@ -101,21 +102,27 @@ func (client *Client) RequestHandler(w http.ResponseWriter, req *http.Request) {
 		if packResponse, ok := <- client.ToClientChanns[packRequest.ConnId]; ok {
 			data, _ := packResponse.Marshal()
 
-			logger.Debug("to client", string(data))
+			//logger.Debug("to client", string(packResponse))
 			client.SpeedMonitor.Add(int64(len(data)), -1)
 
 			w.Write(data)
 		}
 
 	}else if packRequest.Type == schema.CLIENT_SEND_CMD {
-		client.CmdFromClientChann <- packRequest
+		packResponse := client.CmdHandler(packRequest)
+		data, _ := packResponse.Marshal()
 
+		//logger.Debug("to client", string(packResponse))
+		client.SpeedMonitor.Add(int64(len(data)), -1)
+
+		w.Write(data)
+		
 	}else if packRequest.Type == schema.CLIENT_REQUEST_CMD {
 		select {
 		case packResponse := <- client.CmdToClientChann:
 			if data, err := packResponse.Marshal(); err == nil {
 
-				logger.Debug("to client", string(data))
+				//logger.Debug("to client", string(packResponse))
 				client.SpeedMonitor.Add(int64(len(data)), -1)
 
 				w.Write(data)

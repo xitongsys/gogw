@@ -18,7 +18,7 @@ type ClientTCPReverse struct {
 }
 
 func NewClientTCPReverse(clientId schema.ClientId, clientAddr string, portTo int, sourceAddr string, description string) *ClientTCPReverse {
-	return & ClientTCPReverse {
+	client := & ClientTCPReverse {
 		Client: Client {
 			ClientId: clientId,
 			ClientAddr: clientAddr,
@@ -30,13 +30,15 @@ func NewClientTCPReverse(clientId schema.ClientId, clientAddr string, portTo int
 			FromClientChanns: make(map[schema.ConnectionId]chan *schema.PackRequest),
 			ToClientChanns: make(map[schema.ConnectionId]chan *schema.PackResponse),
 			CmdToClientChann: make(chan *schema.PackResponse),
-			CmdFromClientChann: make(chan *schema.PackRequest),
 			SpeedMonitor: NewSpeedMonitor(),
 			LastHeartbeat: time.Now(),
 		},
 
 		Conns: make(map[schema.ConnectionId]net.Conn),
 	}
+
+	client.CmdHandler = client.cmdHandler
+	return client
 }
 
 func (client *ClientTCPReverse) Start() (err error) {
