@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"io"
 	"net"
 	"time"
@@ -13,7 +12,6 @@ import (
 
 type ClientTCP struct {
 	Client
-	Listener net.Listener
 	Conns map[schema.ConnectionId]net.Conn
 }
 
@@ -30,7 +28,6 @@ func NewClientTCP(clientId schema.ClientId, clientAddr string, portTo int, sourc
 			FromClientChanns: make(map[schema.ConnectionId]chan *schema.PackRequest),
 			ToClientChanns: make(map[schema.ConnectionId]chan *schema.PackResponse),
 			CmdToClientChann: make(chan *schema.PackResponse),
-			CmdFromClientChann: make(chan *schema.PackRequest),
 			SpeedMonitor: NewSpeedMonitor(),
 			LastHeartbeat: time.Now(),
 		},
@@ -40,50 +37,47 @@ func NewClientTCP(clientId schema.ClientId, clientAddr string, portTo int, sourc
 }
 
 func (client *ClientTCP) Start() (err error) {
-	//recv cmd from client
-	go func(){
-		defer func(){
-			if err := recover(); err != nil {
-				logger.Error(err)
-			}
-		}()
-
-		for {
-			pack, ok := <- client.CmdFromClientChann
-			if ok {
-
-			}else {
-				client.cmdHandler(pack)
-				return
-			}
-		}
-	}()
-
 	return nil
 }
 
 func (client *ClientTCP) Stop() error {
-	if client.Listener == nil {
-		return nil
+	connIds := []schema.ConnectionId{}
+	for connId, _ := range client.ToClientChanns {
+		connIds = append(connIds, connId)
 	}
-	
-	return client.Listener.Close()
+
+	for _, connId := range connIds {
+		client.closeConnection(connId)
+	}
+
+	return nil
 }
 
-func (client *ClientTCP) openConnection(conn net.Conn) {
+func (client *ClientTCP) openConnection() *schema.PackResponse {
+	openPack := & schema.PackResponse {
+		Code: schema.FAILED,
+	}
+
+	var conn net.Conn
+	var err error
+	conn, err = net.Dial(client.Protocol, client.SourceAddr)
+	if err != nil {
+		return openPack
+	}
+
 	connId := schema.ConnectionId(common.UUID("connid"))
 	toChann, fromChann := make(chan *schema.PackResponse, BUFFSIZE), make(chan *schema.PackRequest, BUFFSIZE)
 	client.ToClientChanns[connId] = toChann
 	client.FromClientChanns[connId] = fromChann
 	client.Conns[connId] = conn
 
-	openPack := & schema.PackResponse {
+	openPack = & schema.PackResponse {
 		ClientId: client.ClientId,
 		ConnId: connId,
 		Type: schema.SERVER_CMD,
 		Content: schema.CMD_OPEN_CONN,
+		Code: schema.SUCCESS,
 	}
-	client.CmdToClientChann <- openPack
 
 	//read from conn, send to client
 	go func(){
@@ -102,6 +96,7 @@ func (client *ClientTCP) openConnection(conn net.Conn) {
 					ConnId: connId,
 					Type: schema.CLIENT_SEND_PACK,
 					Content: string(bs[:n]),
+					Code: schema.SUCCESS,
 				}
 
 				toChann <- pack
@@ -137,6 +132,8 @@ func (client *ClientTCP) openConnection(conn net.Conn) {
 			}
 		}
 	}()
+
+	return openPack
 }
 
 func (client *ClientTCP) closeConnection(connId schema.ConnectionId) {
@@ -161,11 +158,12 @@ func (client *ClientTCP) cmdHandler(packRequest *schema.PackRequest) *schema.Pac
 		connId := packRequest.ConnId
 		client.closeConnection(connId)
 	case schema.CMD_OPEN_CONN:
-		
-		
+		return client.openConnection()
 	}
 
+	packResponse := & schema.PackResponse{
+		Code: schema.SUCCESS,
+	}
 
-	packResponse := & schema.PackResponse{}
 	return packResponse
 }

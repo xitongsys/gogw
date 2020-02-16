@@ -78,25 +78,6 @@ func (client *ClientUDPReverse) Start() (err error) {
 		}
 	}()
 
-	//recv cmd from client
-	go func(){
-		defer func(){
-			if err := recover(); err != nil {
-				logger.Error(err)
-			}
-		}()
-
-		for {
-			pack, ok := <- client.CmdFromClientChann
-			if ok {
-
-			}else {
-				client.cmdHandler(pack)
-				return
-			}
-		}
-	}()
-
 	return nil
 }
 
@@ -183,6 +164,9 @@ func (client *ClientUDPReverse) cmdHandler(packRequest *schema.PackRequest) *sch
 		
 	}
 
-	packResponse := & schema.PackResponse{}
+	packResponse := & schema.PackResponse{
+		Code: schema.SUCCESS,
+	}
+
 	return packResponse
 }

@@ -24,6 +24,7 @@ type PackResponse struct {
 	ConnId ConnectionId
 	Type PackType
 	Content string
+	Code ErrorCode
 }
 
 func (packResponse *PackResponse) Marshal() ([]byte, error) {
