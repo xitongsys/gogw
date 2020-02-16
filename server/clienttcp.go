@@ -16,7 +16,7 @@ type ClientTCP struct {
 }
 
 func NewClientTCP(clientId schema.ClientId, clientAddr string, portTo int, sourceAddr string, description string) *ClientTCP {
-	return & ClientTCP {
+	client := & ClientTCP {
 		Client: Client {
 			ClientId: clientId,
 			ClientAddr: clientAddr,
@@ -34,6 +34,10 @@ func NewClientTCP(clientId schema.ClientId, clientAddr string, portTo int, sourc
 
 		Conns: make(map[schema.ConnectionId]net.Conn),
 	}
+
+	client.CmdHandler = client.cmdHandler
+
+	return client
 }
 
 func (client *ClientTCP) Start() (err error) {

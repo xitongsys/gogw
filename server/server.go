@@ -80,17 +80,19 @@ func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	if registerRequest.ToPort <= 0 {
-		for registerRequest.ToPort = 1000; registerRequest.ToPort < 65535; registerRequest.ToPort++ {
-			if server.checkPort(registerRequest.ToPort, registerRequest.Protocol) == nil {
-				break
+	if registerRequest.Direction == schema.DIRECTION_REVERSE {
+		if registerRequest.ToPort <= 0 {
+			for registerRequest.ToPort = 1000; registerRequest.ToPort < 65535; registerRequest.ToPort++ {
+				if server.checkPort(registerRequest.ToPort, registerRequest.Protocol) == nil {
+					break
+				}
 			}
 		}
-	}
 
-	if err = server.checkPort(registerRequest.ToPort, registerRequest.Protocol); err != nil {
-		logger.Error(err)
-		return
+		if err = server.checkPort(registerRequest.ToPort, registerRequest.Protocol); err != nil {
+			logger.Error(err)
+			return
+		}
 	}
 
 	clientId := schema.ClientId(common.UUID("clientid"))

@@ -36,8 +36,8 @@ type Client struct {
 
 
 func (client *Client) Start() {
-	logger.Info(fmt.Sprintf("\nclient start\nServer: %v\nLocal: %v\nRemotePort: %v\nProtocol: %v\nDescription: %v\nTimeoutSecond: %v\n", 
-	client.ServerAddr, client.SourceAddr, client.ToPort, client.Protocol, client.Description, int(client.TimeoutSecond.Seconds())))
+	logger.Info(fmt.Sprintf("\nclient start\nServer: %v\nSourceAddr: %v\nToPort: %v\nDirection: %v\nProtocol: %v\nDescription: %v\nTimeoutSecond: %v\n", 
+	client.ServerAddr, client.SourceAddr, client.ToPort, client.Direction, client.Protocol, client.Description, int(client.TimeoutSecond.Seconds())))
 
 	//start heartbeat
 	go client.heartbeat()

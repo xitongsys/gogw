@@ -23,6 +23,7 @@ type ClientInfo struct {
 	Port int
 	Protocol string
 	SourceAddr string
+	Direction string
 	Description string
 	
 	ConnectionNumber int

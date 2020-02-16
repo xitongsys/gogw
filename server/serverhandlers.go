@@ -45,6 +45,7 @@ func (server *Server) getAllInfo() *schema.AllInfo {
 			Port: client.GetPortTo(),
 			Protocol: client.GetProtocol(),
 			SourceAddr: client.GetSourceAddr(),
+			Direction: client.GetDirection(),
 			Description: client.GetDescription(),
 			ConnectionNumber: client.GetConnectionNumber(),
 			UploadSpeed: client.GetSpeedMonitor().GetUploadSpeed(),
