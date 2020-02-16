@@ -18,13 +18,13 @@ type Server struct {
 	TimeoutSecond time.Duration
 
 	Lock    sync.Mutex
-	Clients map[schema.ClientId]Client
+	Clients map[schema.ClientId]IClient
 }
 
 func NewServer(serverAddr string, timeoutSecond int) *Server {
 	return &Server{
 		ServerAddr:    serverAddr,
-		Clients:       make(map[schema.ClientId]Client),
+		Clients:       make(map[schema.ClientId]IClient),
 		TimeoutSecond: time.Duration(timeoutSecond) * time.Second,
 	}
 }
@@ -101,7 +101,7 @@ func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) 
 		Code:     schema.SUCCESS,
 	}
 
-	var client Client
+	var client IClient
 	if registerRequest.Protocol == "tcp" {
 		client = NewClientTCPReverse(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Description)
 	}else if registerRequest.Protocol == "udp" {

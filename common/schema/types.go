@@ -11,6 +11,11 @@ const (
 	FAILED
 )
 
+const (
+	DIRECTION_FORWARD = "forward"
+ 	DIRECTION_REVERSE = "reverse"
+)
+
 type PackType int8
 const (
 	_ PackType = iota
