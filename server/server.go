@@ -102,8 +102,12 @@ func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) 
 	}
 
 	var client IClient
-	if registerRequest.Protocol == "tcp" {
+	if registerRequest.Protocol == "tcp" && registerRequest.Direction == schema.DIRECTION_REVERSE {
 		client = NewClientTCPReverse(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Description)
+
+	}else if registerRequest.Protocol == "tcp" && registerRequest.Direction == schema.DIRECTION_FORWARD {
+		client = NewClientTCP(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Description)
+
 	}else if registerRequest.Protocol == "udp" {
 		client = NewClientUDPReverse(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Description)
 	}

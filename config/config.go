@@ -10,6 +10,7 @@ type ClientConfig struct {
 	SourceAddr  string
 	ToPort int
 	Protocol string
+	Direction string
 	Description string
 	TimeoutSecond int
 }
