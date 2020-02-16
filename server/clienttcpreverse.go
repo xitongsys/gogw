@@ -13,7 +13,7 @@ import (
 	"gogw/logger"
 )
 
-type ClientTCP struct {
+type ClientTCPReverse struct {
 	ClientId schema.ClientId
 	ClientAddr string
 	PortTo int
@@ -32,8 +32,8 @@ type ClientTCP struct {
 	LastHeartbeat time.Time
 }
 
-func NewClientTCP(clientId schema.ClientId, clientAddr string, portTo int, sourceAddr string, description string) *ClientTCP {
-	return & ClientTCP {
+func NewClientTCPReverse(clientId schema.ClientId, clientAddr string, portTo int, sourceAddr string, description string) *ClientTCPReverse {
+	return & ClientTCPReverse {
 		ClientId: clientId,
 		ClientAddr: clientAddr,
 		PortTo: portTo,
@@ -49,7 +49,7 @@ func NewClientTCP(clientId schema.ClientId, clientAddr string, portTo int, sourc
 	}
 }
 
-func (client *ClientTCP) Start() (err error) {
+func (client *ClientTCPReverse) Start() (err error) {
 	client.Listener, err = net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", client.PortTo))
 	if err != nil {
 		return err
@@ -70,7 +70,7 @@ func (client *ClientTCP) Start() (err error) {
 	return nil
 }
 
-func (client *ClientTCP) Stop() error {
+func (client *ClientTCPReverse) Stop() error {
 	if client.Listener == nil {
 		return nil
 	}
@@ -78,47 +78,47 @@ func (client *ClientTCP) Stop() error {
 	return client.Listener.Close()
 }
 
-func (client *ClientTCP) GetClientId() schema.ClientId {
+func (client *ClientTCPReverse) GetClientId() schema.ClientId {
 	return client.ClientId
 }
 
-func (client *ClientTCP) GetClientAddr() string {
+func (client *ClientTCPReverse) GetClientAddr() string {
 	return client.ClientAddr
 }
 
-func (client *ClientTCP) GetPortTo() int {
+func (client *ClientTCPReverse) GetPortTo() int {
 	return client.PortTo
 }
 
-func (client *ClientTCP) GetProtocol() string {
+func (client *ClientTCPReverse) GetProtocol() string {
 	return client.Protocol
 }
 
-func (client *ClientTCP) GetSourceAddr() string {
+func (client *ClientTCPReverse) GetSourceAddr() string {
 	return client.SourceAddr
 }
 
-func (client *ClientTCP) GetDescription() string {
+func (client *ClientTCPReverse) GetDescription() string {
 	return client.Description
 }
 
-func (client *ClientTCP) GetConnectionNumber() int {
+func (client *ClientTCPReverse) GetConnectionNumber() int {
 	return len(client.Conns)
 }
 
-func (client *ClientTCP) GetSpeedMonitor() *SpeedMonitor {
+func (client *ClientTCPReverse) GetSpeedMonitor() *SpeedMonitor {
 	return client.SpeedMonitor
 }
 
-func (client *ClientTCP) GetLastHeartbeat() time.Time {
+func (client *ClientTCPReverse) GetLastHeartbeat() time.Time {
 	return client.LastHeartbeat
 }
 
-func (client *ClientTCP) SetLastHeartbeat(t time.Time) {
+func (client *ClientTCPReverse) SetLastHeartbeat(t time.Time) {
 	client.LastHeartbeat = t
 }
 
-func (client *ClientTCP) openConnection(conn net.Conn) {
+func (client *ClientTCPReverse) openConnection(conn net.Conn) {
 	connId := schema.ConnectionId(common.UUID("connid"))
 	toChann, fromChann := make(chan *schema.PackResponse, BUFFSIZE), make(chan *schema.PackRequest, BUFFSIZE)
 	client.ToClientChanns[connId] = toChann
@@ -187,7 +187,7 @@ func (client *ClientTCP) openConnection(conn net.Conn) {
 	}()
 }
 
-func (client *ClientTCP) closeConnection(connId schema.ConnectionId) {
+func (client *ClientTCPReverse) closeConnection(connId schema.ConnectionId) {
 	defer func(){
 		if err := recover(); err != nil {
 			logger.Warn(err)
@@ -203,7 +203,7 @@ func (client *ClientTCP) closeConnection(connId schema.ConnectionId) {
 	delete(client.FromClientChanns, connId)
 }
 
-func (client *ClientTCP) cmdHandler(packRequest *schema.PackRequest) *schema.PackResponse {
+func (client *ClientTCPReverse) cmdHandler(packRequest *schema.PackRequest) *schema.PackResponse {
 	switch  packRequest.Content {
 	case schema.CMD_CLOSE_CONN:
 		connId := packRequest.ConnId
@@ -215,7 +215,7 @@ func (client *ClientTCP) cmdHandler(packRequest *schema.PackRequest) *schema.Pac
 	return packResponse
 }
 
-func (client *ClientTCP) RequestHandler(w http.ResponseWriter, req *http.Request) {
+func (client *ClientTCPReverse) RequestHandler(w http.ResponseWriter, req *http.Request) {
 	defer func(){
 		if err := recover(); err != nil {
 			logger.Warn(err)

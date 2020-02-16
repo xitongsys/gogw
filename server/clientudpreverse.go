@@ -11,7 +11,7 @@ import (
 	"gogw/logger"
 )
 
-type ClientUDP struct {
+type ClientUDPReverse struct {
 	ClientId schema.ClientId
 	ClientAddr string
 	PortTo int
@@ -33,8 +33,8 @@ type ClientUDP struct {
 	LastHeartbeat time.Time
 }
 
-func NewClientUDP(clientId schema.ClientId, clientAddr string, portTo int, sourceAddr string, description string) *ClientUDP {
-	return & ClientUDP {
+func NewClientUDPReverse (clientId schema.ClientId, clientAddr string, portTo int, sourceAddr string, description string) *ClientUDPReverse {
+	return & ClientUDPReverse {
 		ClientId: clientId,
 		ClientAddr: clientAddr,
 		PortTo: portTo,
@@ -51,7 +51,7 @@ func NewClientUDP(clientId schema.ClientId, clientAddr string, portTo int, sourc
 	}
 }
 
-func (client *ClientUDP) Start() (err error) {
+func (client *ClientUDPReverse) Start() (err error) {
 	client.Listener, err = net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("0.0.0.0"), Port: client.PortTo})
 	if err != nil {
 		return err
@@ -91,7 +91,7 @@ func (client *ClientUDP) Start() (err error) {
 	return nil
 }
 
-func (client *ClientUDP) Stop() error {
+func (client *ClientUDPReverse) Stop() error {
 	if client.Listener == nil {
 		return nil
 	}
@@ -99,47 +99,47 @@ func (client *ClientUDP) Stop() error {
 	return client.Listener.Close()
 }
 
-func (client *ClientUDP) GetClientId() schema.ClientId {
+func (client *ClientUDPReverse) GetClientId() schema.ClientId {
 	return client.ClientId
 }
 
-func (client *ClientUDP) GetClientAddr() string {
+func (client *ClientUDPReverse) GetClientAddr() string {
 	return client.ClientAddr
 }
 
-func (client *ClientUDP) GetPortTo() int {
+func (client *ClientUDPReverse) GetPortTo() int {
 	return client.PortTo
 }
 
-func (client *ClientUDP) GetProtocol() string {
+func (client *ClientUDPReverse) GetProtocol() string {
 	return client.Protocol
 }
 
-func (client *ClientUDP) GetSourceAddr() string {
+func (client *ClientUDPReverse) GetSourceAddr() string {
 	return client.SourceAddr
 }
 
-func (client *ClientUDP) GetDescription() string {
+func (client *ClientUDPReverse) GetDescription() string {
 	return client.Description
 }
 
-func (client *ClientUDP) GetConnectionNumber() int {
+func (client *ClientUDPReverse) GetConnectionNumber() int {
 	return len(client.ConnToAddr)
 }
 
-func (client *ClientUDP) GetSpeedMonitor() *SpeedMonitor {
+func (client *ClientUDPReverse) GetSpeedMonitor() *SpeedMonitor {
 	return client.SpeedMonitor
 }
 
-func (client *ClientUDP) GetLastHeartbeat() time.Time {
+func (client *ClientUDPReverse) GetLastHeartbeat() time.Time {
 	return client.LastHeartbeat
 }
 
-func (client *ClientUDP) SetLastHeartbeat(t time.Time) {
+func (client *ClientUDPReverse) SetLastHeartbeat(t time.Time) {
 	client.LastHeartbeat = t
 }
 
-func (client *ClientUDP) openConnection(remoteAddr string) {
+func (client *ClientUDPReverse) openConnection(remoteAddr string) {
 	connId := schema.ConnectionId(common.UUID("connid"))
 	toChann, fromChann := make(chan *schema.PackResponse, BUFFSIZE), make(chan *schema.PackRequest, BUFFSIZE)
 	client.ToClientChanns[connId] = toChann
@@ -189,7 +189,7 @@ func (client *ClientUDP) openConnection(remoteAddr string) {
 	}()
 }
 
-func (client *ClientUDP) closeConnection(connId schema.ConnectionId) {
+func (client *ClientUDPReverse) closeConnection(connId schema.ConnectionId) {
 	defer func(){
 		if err := recover(); err != nil {
 			logger.Warn(err)
@@ -206,7 +206,7 @@ func (client *ClientUDP) closeConnection(connId schema.ConnectionId) {
 	delete(client.FromClientChanns, connId)
 }
 
-func (client *ClientUDP) cmdHandler(packRequest *schema.PackRequest) *schema.PackResponse {
+func (client *ClientUDPReverse) cmdHandler(packRequest *schema.PackRequest) *schema.PackResponse {
 	switch  packRequest.Content {
 	case schema.CMD_CLOSE_CONN:
 		connId := packRequest.ConnId
@@ -218,7 +218,7 @@ func (client *ClientUDP) cmdHandler(packRequest *schema.PackRequest) *schema.Pac
 	return packResponse
 }
 
-func (client *ClientUDP) RequestHandler(w http.ResponseWriter, req *http.Request) {
+func (client *ClientUDPReverse) RequestHandler(w http.ResponseWriter, req *http.Request) {
 	defer func(){
 		if err := recover(); err != nil {
 			logger.Warn(err)

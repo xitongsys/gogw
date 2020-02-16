@@ -103,9 +103,9 @@ func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) 
 
 	var client Client
 	if registerRequest.Protocol == "tcp" {
-		client = NewClientTCP(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Description)
+		client = NewClientTCPReverse(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Description)
 	}else if registerRequest.Protocol == "udp" {
-		client = NewClientUDP(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Description)
+		client = NewClientUDPReverse(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Description)
 	}
 
 	server.Lock.Lock()

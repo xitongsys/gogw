@@ -18,7 +18,7 @@ const (
 	BUFFERSIZE = 100
 )
 
-type Client struct {
+type ClientReverse struct {
 	ServerAddr string
 
 	LocalAddr  string
@@ -33,8 +33,8 @@ type Client struct {
 	ClientId schema.ClientId
 }
 
-func NewClient(serverAddr string, localAddr string, remotePort int, protocol string, description string, timeoutSecond int) *Client {
-	return &Client{
+func NewClientReverse(serverAddr string, localAddr string, remotePort int, protocol string, description string, timeoutSecond int) *ClientReverse {
+	return &ClientReverse{
 		ServerAddr: serverAddr,
 		LocalAddr:  localAddr,
 		RemotePort: remotePort,
@@ -46,7 +46,7 @@ func NewClient(serverAddr string, localAddr string, remotePort int, protocol str
 	}
 }
 
-func (client *Client) Start() {
+func (client *ClientReverse) Start() {
 	logger.Info(fmt.Sprintf("\nclient start\nServer: %v\nLocal: %v\nRemotePort: %v\nProtocol: %v\nDescription: %v\nTimeoutSecond: %v\n", 
 	client.ServerAddr, client.LocalAddr, client.RemotePort, client.Protocol, client.Description, int(client.TimeoutSecond.Seconds())))
 
@@ -74,7 +74,7 @@ func (client *Client) Start() {
 	}
 }
 
-func (client *Client) register() error {
+func (client *ClientReverse) register() error {
 	client.ClientId = schema.ClientId("")
 
 	url := fmt.Sprintf("http://%s/register", client.ServerAddr)
@@ -106,7 +106,7 @@ func (client *Client) register() error {
 	return nil
 }
 
-func (client *Client) openConnection(connId schema.ConnectionId) error {
+func (client *ClientReverse) openConnection(connId schema.ConnectionId) error {
 	var conn net.Conn
 	var err error
 	conn, err = net.Dial(client.Protocol, client.LocalAddr)
@@ -176,7 +176,7 @@ func (client *Client) openConnection(connId schema.ConnectionId) error {
 	return nil
 }
 
-func (client *Client) closeConnection(connId schema.ConnectionId, conn net.Conn) {
+func (client *ClientReverse) closeConnection(connId schema.ConnectionId, conn net.Conn) {
 	conn.Close()
 	err := client.sendCmdToServer(connId, schema.CMD_CLOSE_CONN)
 	if err != nil {
@@ -184,7 +184,7 @@ func (client *Client) closeConnection(connId schema.ConnectionId, conn net.Conn)
 	}
 }
 
-func (client *Client) sendCmdToServer(connId schema.ConnectionId, cmd string) (err error) {
+func (client *ClientReverse) sendCmdToServer(connId schema.ConnectionId, cmd string) (err error) {
 	packRequest := &schema.PackRequest{
 		ClientId: client.ClientId,
 		ConnId:   connId,
@@ -203,7 +203,7 @@ func (client *Client) sendCmdToServer(connId schema.ConnectionId, cmd string) (e
 	return err
 }
 
-func (client *Client) sendToServer(packRequest *schema.PackRequest) (err error) {
+func (client *ClientReverse) sendToServer(packRequest *schema.PackRequest) (err error) {
 	url := fmt.Sprintf("http://%s/pack?clientid=%s", client.ServerAddr, client.ClientId)
 	var data []byte
 	if data, err = packRequest.Marshal(); err == nil {
@@ -213,7 +213,7 @@ func (client *Client) sendToServer(packRequest *schema.PackRequest) (err error) 
 	return err
 }
 
-func (client *Client) recvFromServer(connId schema.ConnectionId) (*schema.PackResponse, error) {
+func (client *ClientReverse) recvFromServer(connId schema.ConnectionId) (*schema.PackResponse, error) {
 	url := fmt.Sprintf("http://%s/pack?clientid=%s", client.ServerAddr, client.ClientId)
 	packRequest := &schema.PackRequest{
 		ClientId: client.ClientId,
@@ -235,14 +235,14 @@ func (client *Client) recvFromServer(connId schema.ConnectionId) (*schema.PackRe
 	return nil, err
 }
 
-func (client *Client) cmdHandler(pack *schema.PackResponse) {
+func (client *ClientReverse) cmdHandler(pack *schema.PackResponse) {
 	if pack.Content == schema.CMD_OPEN_CONN {
 		client.openConnection(pack.ConnId)
 	}
 }
 
 //recv open conn cmd
-func (client *Client) recvCmdFromServer() error {
+func (client *ClientReverse) recvCmdFromServer() error {
 	for {
 		if client.ClientId != "" {
 			url := fmt.Sprintf("http://%s/pack?clientid=%s", client.ServerAddr, client.ClientId)
@@ -266,7 +266,7 @@ func (client *Client) recvCmdFromServer() error {
 	}
 }
 
-func (client *Client) heartbeat() {
+func (client *ClientReverse) heartbeat() {
 	for {
 		if client.ClientId != "" {
 			url := fmt.Sprintf("http://%s/heartbeat?clientid=%s", client.ServerAddr, client.ClientId)
@@ -282,9 +282,7 @@ func (client *Client) heartbeat() {
 	}
 }
 
-
-
-func (client *Client) query(url string, body []byte) ([]byte, error) {
+func (client *ClientReverse) query(url string, body []byte) ([]byte, error) {
 	rep, err := http.Post(url, "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
