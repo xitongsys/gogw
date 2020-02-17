@@ -92,7 +92,7 @@ func (client *ClientForward) openConnection() *schema.PackResponse {
 	//read from conn, send to client
 	go func(){
 		defer func(){
-			client.closeConnection(connId)
+			//client.closeConnection(connId)
 			if err := recover(); err != nil {
 				logger.Warn(err)
 			}
@@ -121,7 +121,7 @@ func (client *ClientForward) openConnection() *schema.PackResponse {
 	//read from client, send to conn
 	go func(){
 		defer func() {
-			client.closeConnection(connId)
+			//client.closeConnection(connId)
 			if err := recover(); err != nil {
 				logger.Warn(err)
 			}
@@ -153,13 +153,13 @@ func (client *ClientForward) closeConnection(connId schema.ConnectionId) {
 		}
 	}()
 
-	client.Conns[connId].Close()
-	delete(client.Conns, connId)
-
 	close(client.ToClientChanns[connId])
 	close(client.FromClientChanns[connId])
 	delete(client.ToClientChanns, connId)
 	delete(client.FromClientChanns, connId)
+
+	client.Conns[connId].Close()
+	delete(client.Conns, connId)
 }
 
 func (client *ClientForward) cmdHandler(packRequest *schema.PackRequest) *schema.PackResponse {
@@ -167,6 +167,7 @@ func (client *ClientForward) cmdHandler(packRequest *schema.PackRequest) *schema
 	case schema.CMD_CLOSE_CONN:
 		connId := packRequest.ConnId
 		client.closeConnection(connId)
+
 	case schema.CMD_OPEN_CONN:
 		return client.openConnection()
 	}
