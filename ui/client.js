@@ -1,15 +1,3 @@
-MSG_FRESH_CHART = "fresh_chart_"
-
-function SpeedToReadable(s){
-    if(s <= 1024){
-        return s + " B/s"
-    }else if(s < 1024 * 1024){
-        return (s/1024.0).toFixed(2) + " KB/s"
-    }else{
-        return (s/1024.0/1024.0).toFixed(2) + " MB/s"
-    }
-}
-
 function Client(divid){
     return {
         DivId: divid,
@@ -25,7 +13,7 @@ function Client(divid){
         UploadSpeed: [0],
         DownloadSpeed: [0],
 
-        Capacity: CLIENT_CAPACITY,
+        Capacity: RECORD_CAPACITY,
 
         ChartConfig: {
             // The type of chart we want to create
@@ -33,7 +21,7 @@ function Client(divid){
         
             // The data for our dataset
             data: {
-                labels: new Array(CLIENT_CAPACITY),
+                labels: new Array(RECORD_CAPACITY),
                 datasets: 
                 [
                     {

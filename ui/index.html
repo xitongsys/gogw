@@ -7,7 +7,9 @@
 
 <body>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+    <script src="util.js"></script>
     <script src="config.js"></script>
+    <script src="server.js"></script>
     <script src="client.js"></script>
     <script src="clientlist.js"></script>
 
@@ -18,9 +20,11 @@
         </span>
     </nav>
 
+    <div id="server"></div>
     <div id="clients"></div>
 
     <script>
+        var server = Server("server")
         var clientList = ClientList("clients")
 
         function getData() {
@@ -29,6 +33,7 @@
                 if (this.readyState == 4 && this.status == 200) {
                     infos = JSON.parse(this.responseText)
                     clientList.Update(infos.Clients)
+                    server.Update(infos)
                 }
             };
             xhttp.open("GET", URL_GET_ALLINFO, true);
