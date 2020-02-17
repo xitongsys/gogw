@@ -112,6 +112,9 @@ func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) 
 	
 	}else if registerRequest.Direction == schema.DIRECTION_FORWARD {
 		client = NewClientForward(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Protocol, registerRequest.Description)
+	}else {
+		logger.Error("Register failed", registerRequest)
+		return
 	}
 
 	server.Lock.Lock()
