@@ -7,6 +7,8 @@ function Server(divid){
         UDPClientNumber: 0,
         TCPConnectionNumber: 0,
         UDPConnectionNumber: 0,
+        ForwardNumber: 0,
+        ReverseNumber: 0,
 
         UploadSpeed: [0],
         DownloadSpeed: [0],
@@ -22,14 +24,14 @@ function Server(divid){
                         0
 					],
 					backgroundColor: [
-						'rgb(255, 255, 0, 1)',
-						'rgb(0, 255, 255, 1)'
+						'rgb(0, 255, 0, 0.5)',
+						'rgb(0, 0, 255, 0.5)'
 					],
 					label: 'Client Number'
 				}],
 				labels: [
-					'tcp: ',
-					'udp: ',
+					'tcp',
+					'udp',
 				]
 			},
 			options: {
@@ -46,6 +48,98 @@ function Server(divid){
                         top: 0,
                         bottom: 0
                     }
+                },
+
+                title: {
+                    display: true,
+                    text: 'tcp/udp clients',
+                    position: 'left'
+                }
+			}
+        },
+
+        ConnectionChartConfig: {
+			type: 'pie',
+			data: {
+				datasets: [{
+					data: [
+                        0,
+                        0
+					],
+					backgroundColor: [
+						'rgb(0, 255, 0, 0.5)',
+						'rgb(0, 0, 255, 0.5)'
+					],
+					label: 'Client Number'
+				}],
+				labels: [
+					'tcp',
+					'udp',
+				]
+			},
+			options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    duration: 0
+                },
+
+                layout: {
+                    padding: {
+                        left: 0,
+                        right: 0,
+                        top: 0,
+                        bottom: 0
+                    }
+                },
+
+                title: {
+                    display: true,
+                    text: 'connections',
+                    position: 'left'
+                }
+			}
+        },
+        
+        DirectionChartConfig: {
+			type: 'pie',
+			data: {
+				datasets: [{
+					data: [
+                        0,
+                        0
+					],
+					backgroundColor: [
+						'rgb(0, 255, 0, 0.5)',
+						'rgb(0, 0, 255, 0.5)'
+					],
+					label: 'Direction'
+				}],
+				labels: [
+					'forward',
+					'reverse',
+				]
+			},
+			options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    duration: 0
+                },
+
+                layout: {
+                    padding: {
+                        left: 0,
+                        right: 0,
+                        top: 0,
+                        bottom: 0
+                    }
+                },
+
+                title: {
+                    display: true,
+                    text: 'f/r clients',
+                    position: 'left'
                 }
 			}
 		},
@@ -120,6 +214,7 @@ function Server(divid){
             var uploadSpeed = 0, downloadSpeed = 0
             var tcpConnNumber = 0, udpConnNumber = 0
             var tcpClientNumber = 0, udpClientNumber = 0
+            var forwardNumber = 0, reverseNumber = 0
             for(var i=0; i<c.Clients.length; i++){
                 uploadSpeed += c.Clients[i].UploadSpeed
                 downloadSpeed += c.Clients[i].DownloadSpeed
@@ -132,12 +227,22 @@ function Server(divid){
                     udpConnNumber += c.Clients[i].ConnectionNumber
                     udpClientNumber += 1
                 }
+
+                if(c.Clients[i].Direction == "forward"){
+                    forwardNumber += 1
+                }
+
+                if(c.Clients[i].Direction == "reverse"){
+                    reverseNumber += 1
+                }
             }
 
             this.TCPClientNumber = tcpClientNumber
             this.UDPClientNumber = udpClientNumber
-            this.tcpConnNumber = tcpConnNumber
-            this.udpConnNumber = udpConnNumber
+            this.TCPConnectionNumber = tcpConnNumber
+            this.UDPConnectionNumber = udpConnNumber
+            this.ForwardNumber = forwardNumber
+            this.ReverseNumber = reverseNumber
            
             this.UploadSpeed.push(uploadSpeed)
             this.DownloadSpeed.push(downloadSpeed)
@@ -171,45 +276,35 @@ function Server(divid){
             var clientCtx = document.getElementById('canvas_client').getContext('2d');
             var clientChart = new Chart(clientCtx, this.ClientChartConfig)
             this.ClientChartConfig.data.datasets[0].data = [this.TCPClientNumber, this.UDPClientNumber]
-            this.ClientChartConfig.data.labels = ["tcp: " + this.TCPClientNumber, "udp: " + this.UDPClientNumber]
+            //this.ClientChartConfig.data.labels = ["tcp: " + this.TCPClientNumber, "udp: " + this.UDPClientNumber]
+
+            var connectionCtx = document.getElementById('canvas_connection').getContext('2d');
+            var connectionChart = new Chart(connectionCtx, this.ConnectionChartConfig)
+            this.ConnectionChartConfig.data.datasets[0].data = [this.TCPConnectionNumber, this.UDPConnectionNumber]
+            //this.ClientChartConfig.data.labels = ["tcp: " + this.TCPClientNumber, "udp: " + this.UDPClientNumber]
+
+            var directionCtx = document.getElementById('canvas_direction').getContext('2d');
+            var directionChart = new Chart(directionCtx, this.DirectionChartConfig)
+            this.DirectionChartConfig.data.datasets[0].data = [this.ForwardNumber, this.ReverseNumber]
+            //this.ClientChartConfig.data.labels = ["tcp: " + this.TCPClientNumber, "udp: " + this.UDPClientNumber]
         },
 
         HTML: function(){
             var res = 
             '<div class="row">' +
-                '<div class="col-sm-4">' +                 
-                    '<div class="row">' +
-                        '<div class="col-sm-4"><h6>ServerAddr:</h6></div>' +
-                        '<div class="col-sm-8">' + this.ServerAddr + '</div>' + 
-                    '</div>' +
-
-                    '<div class="row">' +
-                        '<div class="col-sm-4"><h6>TCPClients:</h6></div>' +
-                        '<div class="col-sm-8">' + this.TCPClientNumber + '</div>' + 
-                    '</div>' +
-
-                    '<div class="row">' +
-                    '<div class="col-sm-4"><h6>UDPClients:</h6></div>' +
-                    '<div class="col-sm-8">' + this.UDPClientNumber + '</div>' + 
-                    '</div>' +
-
-                    '<div class="row">' +
-                        '<div class="col-sm-4"><h6>TCPConnections:</h6></div>' +
-                        '<div class="col-sm-8">' + this.TCPConnectionNumber + '</div>' + 
-                    '</div>' +
-
-                    '<div class="row">' +
-                        '<div class="col-sm-4"><h6>UDPConnections:</h6></div>' +
-                        '<div class="col-sm-8">' + this.UDPConnectionNumber + '</div>' + 
-                    '</div>' +
-
-                '</div>' + 
-
-                '<div class="col-sm-4">' +
+                '<div class="col-sm-2">' +
                     '<canvas id="canvas_client"></canvas>' +
                 '</div>' +
 
-                '<div class="col-sm-4">' +
+                '<div class="col-sm-2">' +
+                    '<canvas id="canvas_connection"></canvas>' +
+                '</div>' +
+
+                '<div class="col-sm-2">' +
+                    '<canvas id="canvas_direction"></canvas>' +
+                '</div>' +
+
+                '<div class="col-sm-6">' +
                     '<canvas id="canvas_speed"></canvas>' +
                 '</div>' +
             '</div>' 
