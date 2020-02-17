@@ -20,8 +20,17 @@
         </span>
     </nav>
 
-    <div id="server" style='margin:10px; padding: 10px;' ></div>
-    <div id="clients"></div>
+    <div class="card text-center">
+        <div class="card-body">
+            <h4 class="card-title">Statistics</h4>
+            <div class="border-top my-3"></div>
+            <div id="server"></div>
+
+            <h4 class="card-title">Clients</h4>      
+            <div class="border-top my-3"></div>
+            <div id="clients"></div>      
+        </div>
+    </div>
 
     <script>
         var server = Server("server")

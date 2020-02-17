@@ -297,16 +297,17 @@ function Server(divid){
                 '</div>' +
 
                 '<div class="col-sm-2">' +
-                    '<canvas id="canvas_connection"></canvas>' +
+                    '<canvas id="canvas_direction"></canvas>' +
                 '</div>' +
 
                 '<div class="col-sm-2">' +
-                    '<canvas id="canvas_direction"></canvas>' +
+                    '<canvas id="canvas_connection"></canvas>' +
                 '</div>' +
 
                 '<div class="col-sm-6">' +
                     '<canvas id="canvas_speed"></canvas>' +
                 '</div>' +
+
             '</div>' 
 
             return res
