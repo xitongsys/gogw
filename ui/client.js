@@ -17,6 +17,7 @@ function Client(divid){
         ClientAddr: "",
         Port: 0,
         Protocol: "",
+        Direction: "",
         SourceAddr: "",
         Description: "",
 
@@ -98,6 +99,7 @@ function Client(divid){
             this.Protocol = c.Protocol
             this.SourceAddr = c.SourceAddr
             this.Description = c.Description
+            this.Direction = c.Direction
 
             this.ConnectionNumber = c.ConnectionNumber
             var us = c.UploadSpeed, ds = c.DownloadSpeed
@@ -158,6 +160,11 @@ function Client(divid){
                     '<div class="row">' +
                         '<div class="col-sm-4"><h6>PortTo:</h6></div>' +
                         '<div class="col-sm-8">' + this.Port + '</div>' + 
+                    '</div>' +
+
+                    '<div class="row">' +
+                        '<div class="col-sm-4"><h6>Direction:</h6></div>' +
+                        '<div class="col-sm-8">' + this.Direction + '</div>' + 
                     '</div>' +
 
                     '<div class="row">' +
