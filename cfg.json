@@ -4,6 +4,7 @@
 		"SourceAddr":"127.0.0.1:8080",
 		"ToPort":81,
 		"Protocol": "tcp",
+		"Direction": "reverse",
 		"Description":"webservice",
 		"TimeoutSecond": 30
 	},

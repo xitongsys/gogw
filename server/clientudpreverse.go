@@ -53,7 +53,7 @@ func (client *ClientUDPReverse) Start() (err error) {
 			n, remoteAddr, err := client.Listener.ReadFromUDP(bs)
 			if err != nil {
 				logger.Error(err)
-				continue
+				return
 			}
 
 			pack := & schema.PackResponse {
