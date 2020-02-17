@@ -246,13 +246,13 @@ func (client *ClientForward) openConnectionUDP(connId schema.ConnectionId) error
 }
 
 func (client *ClientForward) closeConnection(connId schema.ConnectionId, conn net.Conn) {
-	if conn != nil {
-		conn.Close()
-	}
-
 	_, err := client.sendCmdToServer(connId, schema.CMD_CLOSE_CONN)
 	if err != nil {
 		logger.Error(err)
+	}
+
+	if conn != nil {
+		conn.Close()
 	}
 }
 
