@@ -28,7 +28,7 @@ func NewClientUDPReverse (clientId schema.ClientId, clientAddr string, toPort in
 			Description: description,
 			FromClientChanns: make(map[schema.ConnectionId]chan *schema.PackRequest),
 			ToClientChanns: make(map[schema.ConnectionId]chan *schema.PackResponse),
-			CmdToClientChann: make(chan *schema.PackResponse),
+			CmdToClientChann: make(chan *schema.PackResponse, BUFFSIZE),
 			SpeedMonitor: NewSpeedMonitor(),
 			LastHeartbeat: time.Now(),
 		},

@@ -4,12 +4,16 @@ import (
 	"time"
 	"net/http"
 	"io/ioutil"
+	"sync"
+	
 
 	"gogw/common/schema"
 	"gogw/logger"
 )
 
 type Client struct {
+	Lock sync.Mutex
+
 	ClientId schema.ClientId
 	ClientAddr string
 	ToPort int

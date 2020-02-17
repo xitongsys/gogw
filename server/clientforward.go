@@ -33,7 +33,7 @@ func NewClientForward(clientId schema.ClientId,
 			Description: description,
 			FromClientChanns: make(map[schema.ConnectionId]chan *schema.PackRequest),
 			ToClientChanns: make(map[schema.ConnectionId]chan *schema.PackResponse),
-			CmdToClientChann: make(chan *schema.PackResponse),
+			CmdToClientChann: make(chan *schema.PackResponse, BUFFSIZE),
 			SpeedMonitor: NewSpeedMonitor(),
 			LastHeartbeat: time.Now(),
 		},
@@ -74,6 +74,9 @@ func (client *ClientForward) openConnection() *schema.PackResponse {
 	if err != nil {
 		return openPack
 	}
+
+	client.Lock.Lock()
+	defer client.Lock.Unlock()
 
 	connId := schema.ConnectionId(common.UUID("connid"))
 	toChann, fromChann := make(chan *schema.PackResponse, BUFFSIZE), make(chan *schema.PackRequest, BUFFSIZE)
@@ -147,6 +150,9 @@ func (client *ClientForward) openConnection() *schema.PackResponse {
 }
 
 func (client *ClientForward) closeConnection(connId schema.ConnectionId) {
+	client.Lock.Lock()
+	defer client.Lock.Unlock()
+
 	defer func(){
 		if err := recover(); err != nil {
 			logger.Warn(err)
