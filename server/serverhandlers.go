@@ -42,7 +42,7 @@ func (server *Server) getAllInfo() *schema.AllInfo {
 		cinfo := & schema.ClientInfo {
 			ClientId: client.GetClientId(),
 			ClientAddr: client.GetClientAddr(),
-			Port: client.GetPortTo(),
+			Port: client.GetToPort(),
 			Protocol: client.GetProtocol(),
 			SourceAddr: client.GetSourceAddr(),
 			Direction: client.GetDirection(),

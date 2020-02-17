@@ -12,7 +12,7 @@ import (
 type Client struct {
 	ClientId schema.ClientId
 	ClientAddr string
-	PortTo int
+	ToPort int
 	Direction string
 	Protocol string
 	SourceAddr string
@@ -37,8 +37,8 @@ func (client *Client) GetClientAddr() string {
 	return client.ClientAddr
 }
 
-func (client *Client) GetPortTo() int {
-	return client.PortTo
+func (client *Client) GetToPort() int {
+	return client.ToPort
 }
 
 func (client *Client) GetDirection() string {

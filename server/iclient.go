@@ -18,7 +18,7 @@ type IClient interface {
 
 	GetClientId() schema.ClientId
 	GetClientAddr() string
-	GetPortTo() int
+	GetToPort() int
 	GetDirection() string
 	GetProtocol() string
 	GetSourceAddr() string

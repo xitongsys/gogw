@@ -10,18 +10,24 @@ import (
 	"gogw/logger"
 )
 
-type ClientTCP struct {
+type ClientForward struct {
 	Client
 	Conns map[schema.ConnectionId]net.Conn
 }
 
-func NewClientTCP(clientId schema.ClientId, clientAddr string, portTo int, sourceAddr string, description string) *ClientTCP {
-	client := & ClientTCP {
+func NewClientForward(clientId schema.ClientId, 
+	clientAddr string, 
+	toPort int, 
+	sourceAddr string, 
+	protocol string, 
+	description string) *ClientForward {
+
+	client := & ClientForward {
 		Client: Client {
 			ClientId: clientId,
 			ClientAddr: clientAddr,
-			PortTo: portTo,
-			Protocol: "tcp",
+			ToPort: toPort,
+			Protocol: protocol,
 			Direction: schema.DIRECTION_FORWARD,
 			SourceAddr: sourceAddr,
 			Description: description,
@@ -40,11 +46,11 @@ func NewClientTCP(clientId schema.ClientId, clientAddr string, portTo int, sourc
 	return client
 }
 
-func (client *ClientTCP) Start() (err error) {
+func (client *ClientForward) Start() (err error) {
 	return nil
 }
 
-func (client *ClientTCP) Stop() error {
+func (client *ClientForward) Stop() error {
 	connIds := []schema.ConnectionId{}
 	for connId, _ := range client.ToClientChanns {
 		connIds = append(connIds, connId)
@@ -57,7 +63,7 @@ func (client *ClientTCP) Stop() error {
 	return nil
 }
 
-func (client *ClientTCP) openConnection() *schema.PackResponse {
+func (client *ClientForward) openConnection() *schema.PackResponse {
 	openPack := & schema.PackResponse {
 		Code: schema.FAILED,
 	}
@@ -140,7 +146,7 @@ func (client *ClientTCP) openConnection() *schema.PackResponse {
 	return openPack
 }
 
-func (client *ClientTCP) closeConnection(connId schema.ConnectionId) {
+func (client *ClientForward) closeConnection(connId schema.ConnectionId) {
 	defer func(){
 		if err := recover(); err != nil {
 			logger.Warn(err)
@@ -156,7 +162,7 @@ func (client *ClientTCP) closeConnection(connId schema.ConnectionId) {
 	delete(client.FromClientChanns, connId)
 }
 
-func (client *ClientTCP) cmdHandler(packRequest *schema.PackRequest) *schema.PackResponse {
+func (client *ClientForward) cmdHandler(packRequest *schema.PackRequest) *schema.PackResponse {
 	switch  packRequest.Content {
 	case schema.CMD_CLOSE_CONN:
 		connId := packRequest.ConnId

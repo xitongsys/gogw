@@ -17,12 +17,12 @@ type ClientTCPReverse struct {
 	Conns map[schema.ConnectionId]net.Conn
 }
 
-func NewClientTCPReverse(clientId schema.ClientId, clientAddr string, portTo int, sourceAddr string, description string) *ClientTCPReverse {
+func NewClientTCPReverse(clientId schema.ClientId, clientAddr string, toPort int, sourceAddr string, description string) *ClientTCPReverse {
 	client := & ClientTCPReverse {
 		Client: Client {
 			ClientId: clientId,
 			ClientAddr: clientAddr,
-			PortTo: portTo,
+			ToPort: toPort,
 			Protocol: "tcp",
 			Direction: schema.DIRECTION_REVERSE,
 			SourceAddr: sourceAddr,
@@ -42,7 +42,7 @@ func NewClientTCPReverse(clientId schema.ClientId, clientAddr string, portTo int
 }
 
 func (client *ClientTCPReverse) Start() (err error) {
-	client.Listener, err = net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", client.PortTo))
+	client.Listener, err = net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", client.ToPort))
 	if err != nil {
 		return err
 	}

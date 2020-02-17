@@ -16,13 +16,13 @@ type ClientUDPReverse struct {
 	ConnToAddr map[schema.ConnectionId]string
 }
 
-func NewClientUDPReverse (clientId schema.ClientId, clientAddr string, portTo int, sourceAddr string, description string) *ClientUDPReverse {
+func NewClientUDPReverse (clientId schema.ClientId, clientAddr string, toPort int, sourceAddr string, description string) *ClientUDPReverse {
 	client := & ClientUDPReverse {
 		Client: Client {
 			ClientId: clientId,
 			ClientAddr: clientAddr,
-			PortTo: portTo,
-			Direction: "string",
+			ToPort: toPort,
+			Direction: schema.DIRECTION_REVERSE,
 			Protocol: "udp",
 			SourceAddr: sourceAddr,
 			Description: description,
@@ -42,7 +42,7 @@ func NewClientUDPReverse (clientId schema.ClientId, clientAddr string, portTo in
 }
 
 func (client *ClientUDPReverse) Start() (err error) {
-	client.Listener, err = net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("0.0.0.0"), Port: client.PortTo})
+	client.Listener, err = net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("0.0.0.0"), Port: client.ToPort})
 	if err != nil {
 		return err
 	}

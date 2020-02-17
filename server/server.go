@@ -107,11 +107,11 @@ func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) 
 	if registerRequest.Protocol == "tcp" && registerRequest.Direction == schema.DIRECTION_REVERSE {
 		client = NewClientTCPReverse(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Description)
 
-	}else if registerRequest.Protocol == "tcp" && registerRequest.Direction == schema.DIRECTION_FORWARD {
-		client = NewClientTCP(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Description)
-
-	}else if registerRequest.Protocol == "udp" {
+	}else if registerRequest.Protocol == "udp" && registerRequest.Direction == schema.DIRECTION_REVERSE{
 		client = NewClientUDPReverse(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Description)
+	
+	}else if registerRequest.Direction == schema.DIRECTION_FORWARD {
+		client = NewClientForward(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Protocol, registerRequest.Description)
 	}
 
 	server.Lock.Lock()
