@@ -20,6 +20,7 @@ func NewClient(
 
 	if direction == schema.DIRECTION_FORWARD {
 		return NewClientForward(serverAddr, sourceAddr, toPort, protocol, description, timeoutSecond)
+		
 	}else if direction == schema.DIRECTION_REVERSE {
 		return NewClientReverse(serverAddr, sourceAddr, toPort, protocol, description, timeoutSecond)
 	}

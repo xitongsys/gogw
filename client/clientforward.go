@@ -92,6 +92,8 @@ func (client *ClientForward) startUDP() {
 		logger.Error(err)
 		return
 	}
+
+	go client.Client.Start()
 	
 	bs := make([]byte, PACKSIZE)
 	for {
@@ -115,6 +117,7 @@ func (client *ClientForward) startUDP() {
 			}
 
 			client.AddrToConn[key] = connId
+			client.ConnToAddr[connId] = key
 
 			client.openConnectionUDP(connId)
 		}
@@ -222,7 +225,6 @@ func (client *ClientForward) openConnectionUDP(connId schema.ConnectionId) error
 			packResponse, err := client.recvFromServer(connId)
 
 			if err == nil && len(packResponse.Content) > 0 {
-
 				logger.Debug("from server", *packResponse)
 
 				var addr *net.UDPAddr
