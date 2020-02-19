@@ -12,8 +12,6 @@ import (
 )
 
 type Client struct {
-	Lock sync.Mutex
-
 	ClientId schema.ClientId
 	ClientAddr string
 	ToPort int
@@ -22,6 +20,7 @@ type Client struct {
 	SourceAddr string
 	Description string
 
+	Lock sync.Mutex
 	FromClientChanns map[schema.ConnectionId]chan *schema.PackRequest
 	ToClientChanns map[schema.ConnectionId]chan *schema.PackResponse
 	CmdToClientChann chan *schema.PackResponse
@@ -100,16 +99,27 @@ func (client *Client) RequestHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if packRequest.Type == schema.CLIENT_SEND_PACK {
-		client.FromClientChanns[packRequest.ConnId] <- packRequest
+		client.Lock.Lock()
+		chann, ok := client.FromClientChanns[packRequest.ConnId]
+		client.Lock.Unlock()
+		if ok {
+			chann <- packRequest
+		}
 
 	}else if packRequest.Type == schema.CLIENT_REQUEST_PACK {
-		if packResponse, ok := <- client.ToClientChanns[packRequest.ConnId]; ok {
-			data, _ := packResponse.Marshal()
+		client.Lock.Lock()
+		chann, ok := client.ToClientChanns[packRequest.ConnId]
+		client.Lock.Unlock()
 
-			//logger.Debug("to client", string(packResponse))
-			client.SpeedMonitor.Add(int64(len(data)), -1)
+		if ok {
+			if packResponse, ok := <- chann; ok {
+				data, _ := packResponse.Marshal()
 
-			w.Write(data)
+				//logger.Debug("to client", string(packResponse))
+				client.SpeedMonitor.Add(int64(len(data)), -1)
+
+				w.Write(data)
+			}
 		}
 
 	}else if packRequest.Type == schema.CLIENT_SEND_CMD {
