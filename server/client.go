@@ -1,18 +1,21 @@
 package server 
 
 import (
-	"time"
-	"net/http"
+	"fmt"
+	"io"
 	"io/ioutil"
+	"net"
+	"net/http"
 	"sync"
-	
+	"time"
 
-	"gogw/common/schema"
+	"gogw/common"
 	"gogw/logger"
+	"gogw/schema"
 )
 
 type Client struct {
-	ClientId schema.ClientId
+	ClientId string
 	ClientAddr string
 	ToPort int
 	Direction string
@@ -20,127 +23,123 @@ type Client struct {
 	SourceAddr string
 	Description string
 
-	Lock sync.Mutex
-	FromClientChanns map[schema.ConnectionId]chan *schema.PackRequest
-	ToClientChanns map[schema.ConnectionId]chan *schema.PackResponse
-	CmdToClientChann chan *schema.PackResponse
+	Conns chan net.Conn
+
+	MsgConn *common.HttpConn
 
 	SpeedMonitor *SpeedMonitor
-	LastHeartbeat time.Time
-
-	CmdHandler func(packRequest *schema.PackRequest) *schema.PackResponse
 }
 
+func NewClient(
+	clientId string, 
+	clientAddr string,
+	toPort int,
+	direction string,
+	protocol string,
+	sourceAddr string,
+	description string,
+	w http.ResponseWriter,
+	r *http.Request,
+	) *Client {
 
-func (client *Client) GetClientId() schema.ClientId {
-	return client.ClientId
+	return & Client {
+		ClientId: clientId,
+		ClientAddr: clientAddr,
+		ToPort: toPort,
+		Direction: direction,
+		Protocol: protocol,
+		SourceAddr: sourceAddr,
+		Description: description,
+
+		Conns: make(chan net.Conn),
+		MsgConn: common.NewHttpConn(r, w),
+
+		SpeedMonitor: NewSpeedMonitor(),
+		LastHeartbeat: time.Now(),
+	}
 }
 
-func (client *Client) GetClientAddr() string {
-	return client.ClientAddr
+func (c *Client) Start() error {
+	msg := &schema.Msg{}
+
+	if c.Direction == schema.DIRECTION_REVERSE {
+		if err := c.startReverse(); err != nil {
+			return err
+		}
+	}
+
+	for {
+		if err := common.ReadObject(c.MsgConn, msg); err != nil {
+			return err
+		}
+
+		c.msgHandler(msg)
+	}
+
+	return nil
 }
 
-func (client *Client) GetToPort() int {
-	return client.ToPort
+func (c *Client) msgHandler(msg *schema.Msg) {
 }
 
-func (client *Client) GetDirection() string {
-	return client.Direction
+func (c *Client) readMsg() (*schema.Msg, error) {
+	msg := &schema.Msg{}
+	return msg, common.ReadObject(msg)
 }
 
-func (client *Client) GetProtocol() string {
-	return client.Protocol
+func (c *Client) writeMsg(msg *schema.Msg) error {
+	return common.WriteObject(c.MsgConn, msg)
 }
 
-func (client *Client) GetSourceAddr() string {
-	return client.SourceAddr
-}
+func (c *Client) startReverse() error {
+	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", c.ToPort))
+	if err != nil {
+		return err
+	}
+	
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				logger.Warn(err)
+				return
+			}
 
-func (client *Client) GetDescription() string {
-	return client.Description
-}
-
-func (client *Client) GetConnectionNumber() int {
-	return len(client.FromClientChanns)
-}
-
-func (client *Client) GetSpeedMonitor() *SpeedMonitor {
-	return client.SpeedMonitor
-}
-
-func (client *Client) GetLastHeartbeat() time.Time {
-	return client.LastHeartbeat
-}
-
-func (client *Client) SetLastHeartbeat(t time.Time) {
-	client.LastHeartbeat = t
-}
-
-func (client *Client) RequestHandler(w http.ResponseWriter, req *http.Request) {
-	defer func(){
-		if err := recover(); err != nil {
-			logger.Warn(err)
+			c.writeMsg(&schema.Msg{MsgType: schema.MSG_OPEN_CONN})
+			c.Conns <- conn
 		}
 	}()
 
-	bs, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		logger.Error(err)
-		return
-	}
+	return nil
+}
 
-	logger.Debug("from client ", string(bs))
-	client.SpeedMonitor.Add(-1, int64(len(bs)))
-
-	packRequest := &schema.PackRequest{}
-	if err = packRequest.Unmarshal(bs); err != nil {
-		logger.Error(err)
-		return
-	}
-
-	if packRequest.Type == schema.CLIENT_SEND_PACK {
-		client.Lock.Lock()
-		chann, ok := client.FromClientChanns[packRequest.ConnId]
-		client.Lock.Unlock()
-		if ok {
-			chann <- packRequest
-		}
-
-	}else if packRequest.Type == schema.CLIENT_REQUEST_PACK {
-		client.Lock.Lock()
-		chann, ok := client.ToClientChanns[packRequest.ConnId]
-		client.Lock.Unlock()
-
-		if ok {
-			if packResponse, ok := <- chann; ok {
-				data, _ := packResponse.Marshal()
-
-				//logger.Debug("to client", string(packResponse))
-				client.SpeedMonitor.Add(int64(len(data)), -1)
-
-				w.Write(data)
+func (c *Client) ReverseNewConnHandler(w http.ResponseWriter, r *http.Request){
+	conn := <- c.Conns
+	var wg sync.WaitGroup
+	
+	wg.Add(1)
+	go func(){
+		defer func(){
+			if err := recover(); err != nil {
+				logger.Error(err)
 			}
-		}
+			wg.Done()
+		}()
 
-	}else if packRequest.Type == schema.CLIENT_SEND_CMD {
-		packResponse := client.CmdHandler(packRequest)
-		data, _ := packResponse.Marshal()
+		io.Copy(conn, r.Body)
+	}()
 
-		//logger.Debug("to client", string(packResponse))
-		client.SpeedMonitor.Add(int64(len(data)), -1)
-
-		w.Write(data)
-		
-	}else if packRequest.Type == schema.CLIENT_REQUEST_CMD {
-		select {
-		case packResponse := <- client.CmdToClientChann:
-			if data, err := packResponse.Marshal(); err == nil {
-
-				//logger.Debug("to client", string(packResponse))
-				client.SpeedMonitor.Add(int64(len(data)), -1)
-
-				w.Write(data)
+	wg.Add(1)
+	go func(){
+		defer func(){
+			if err := recover(); err != nil {
+				logger.Error(err)
 			}
-		}
-	}
+			wg.Done()
+		}()
+
+		io.Copy(w, conn)
+	}()
+
+	wg.Wait()
 }

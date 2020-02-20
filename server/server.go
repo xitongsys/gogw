@@ -15,136 +15,62 @@ import (
 
 type Server struct {
 	ServerAddr    string
-	TimeoutSecond time.Duration
-
-	Lock    sync.Mutex
-	Clients map[schema.ClientId]IClient
+	Clients map[string]*Client
 }
 
 func NewServer(serverAddr string, timeoutSecond int) *Server {
 	return &Server{
 		ServerAddr:    serverAddr,
 		Clients:       make(map[schema.ClientId]IClient),
-		TimeoutSecond: time.Duration(timeoutSecond) * time.Second,
 	}
-}
-
-func (server *Server) cleaner() {
-	server.Lock.Lock()
-	defer server.Lock.Unlock()
-
-	t := time.Now()
-	shouldDelete := []schema.ClientId{}
-	for clientId, client := range server.Clients {
-		if t.Sub(client.GetLastHeartbeat()).Milliseconds() > server.TimeoutSecond.Milliseconds() {
-			shouldDelete = append(shouldDelete, clientId)
-			client.Stop()
-		}
-	}
-
-	for _, clientId := range shouldDelete {
-		delete(server.Clients, clientId)
-	}
-}
-
-func (server *Server) checkPort(port int, protocol string) error {
-	if protocol == "tcp" {
-		l, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%v", port))
-		if err != nil {
-			return err
-		}
-		l.Close()
-		return nil
-	}else if protocol == "udp" {
-		l, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("0.0.0.0"), Port: port})
-		if err != nil {
-			return err
-		}
-		l.Close()
-		return nil
-	}
-
-	return fmt.Errorf("unsupport protocol: %v", protocol)
 }
 
 func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) {
-	bs, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		logger.Error(err)
-		return
-	}
+	clientId := common.UUID("clientid")
 
-	registerRequest := &schema.RegisterRequest{}
-	if err = registerRequest.Unmarshal(bs); err != nil {
-		logger.Error(err)
-		return
-	}
-
-	if registerRequest.Direction == schema.DIRECTION_REVERSE {
-		if registerRequest.ToPort <= 0 {
-			for registerRequest.ToPort = 1000; registerRequest.ToPort < 65535; registerRequest.ToPort++ {
-				if server.checkPort(registerRequest.ToPort, registerRequest.Protocol) == nil {
-					break
-				}
-			}
-		}
-
-		if err = server.checkPort(registerRequest.ToPort, registerRequest.Protocol); err != nil {
+	defer func(){
+		if err := recover(); err != nil {
 			logger.Error(err)
-			return
 		}
-	}
 
-	clientId := schema.ClientId(common.UUID("clientid"))
-
-	registerResponse := &schema.RegisterResponse{
-		ClientId: clientId,
-		ToPort:   registerRequest.ToPort,
-		Code:     schema.SUCCESS,
-	}
-
-	var client IClient
-	if registerRequest.Protocol == "tcp" && registerRequest.Direction == schema.DIRECTION_REVERSE {
-		client = NewClientTCPReverse(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Description)
-
-	}else if registerRequest.Protocol == "udp" && registerRequest.Direction == schema.DIRECTION_REVERSE{
-		client = NewClientUDPReverse(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Description)
+		delete(server.Clients, clientid)
+	}()
 	
-	}else if registerRequest.Direction == schema.DIRECTION_FORWARD {
-		client = NewClientForward(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Protocol, registerRequest.Description)
-	}else {
-		logger.Error("Register failed", registerRequest)
-		return
-	}
+	clientAddr := req.RemoteAddr
+	toPort := req.URL.Query()["toport"][0]
+	direction := req.URL.Query()["direction"][0]
+	protocol := req.URL.Query()["protocol"][0]
+	sourceAddr := req.URL.Query()["sourceaddr"][0]
+	description := req.URL.Query()["description"][0]
 
-	server.Lock.Lock()
-	defer server.Lock.Unlock()
+	client := NewClient(
+		clientId,
+		clientAddr,
+		toPort,
+		direction,
+		protocol,
+		sourceAddr,
+		description,
+		w,
+		r,
+	)
+
 	server.Clients[clientId] = client
+	err := client.Start()
 
-	if err = client.Start(); err == nil {
-		var data []byte
-		if data, err = registerResponse.Marshal(); err == nil {
-			_, err = w.Write(data)
-		}
-	}
-
-	if err != nil {
-		delete(server.Clients, clientId)
-		registerResponse.Code = schema.FAILED
-		data, _ := registerResponse.Marshal()
-		w.Write(data)
-
-		logger.Error(err)
-	}
-
+	logger.Error(err)
 }
 
-func (server *Server) packHandler(w http.ResponseWriter, req *http.Request) {
-	if cs, ok := req.URL.Query()["clientid"]; ok && len(cs[0]) > 0 {
-		clientId := schema.ClientId(cs[0])
-		if client, ok := server.Clients[clientId]; ok && client != nil {
-			client.RequestHandler(w, req)
+func (server *Server) reverseNewConnHandler(w http.ResponseWriter, r *http.Request) {
+	defer func(){
+		if err := recover(); err != nil {
+			logger.Error(err)
 		}
+	}()
+	
+	clientId := req.URL.Query["clientid"][0]
+	if client, ok := server.Clients[clientId]; ok {
+		client.ReverseNewConnHandler(w, r)
 	}
 }
 
@@ -152,8 +78,7 @@ func (server *Server) Start() {
 	logger.Info(fmt.Sprintf("\nserver start\nAddr: %v\nTimeoutSecond: %v\n", server.ServerAddr, int(server.TimeoutSecond.Seconds())))
 
 	http.HandleFunc("/register", server.registerHandler)
-	http.HandleFunc("/pack", server.packHandler)
-	http.HandleFunc("/heartbeat", server.heartbeatHandler)
+	http.HandleFunc("/reversenewconn", server.packHandler)
 	http.HandleFunc("/monitor", server.monitorHandler)
 	http.Handle("/ui/", http.StripPrefix("/ui/", http.FileServer(http.Dir("./ui"))))
 
