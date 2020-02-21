@@ -94,6 +94,7 @@ func (s *Server) Start() {
 
 	http.HandleFunc("/register", s.registerHandler)
 	http.HandleFunc("/msg", s.msgHandler)
+	http.HandleFunc("/heartbeat", s.heartbeatHandler)
 	http.HandleFunc("/monitor", s.monitorHandler)
 	http.Handle("/ui/", http.StripPrefix("/ui/", http.FileServer(http.Dir("./ui"))))
 	http.ListenAndServe(s.ServerAddr, nil)

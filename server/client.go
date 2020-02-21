@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"time"
 
 	"gogw/common"
 	"gogw/logger"
@@ -22,6 +23,7 @@ type Client struct {
 	Conns *sync.Map
 	MsgChann chan *schema.MsgPack
 	
+	LastHeartbeatTime time.Time
 	SpeedMonitor *SpeedMonitor
 }
 
@@ -47,6 +49,7 @@ func NewClient(
 		Conns: &sync.Map{},
 		MsgChann: make(chan *schema.MsgPack),
 
+		LastHeartbeatTime: time.Now(),
 		SpeedMonitor: NewSpeedMonitor(),
 	}
 }
