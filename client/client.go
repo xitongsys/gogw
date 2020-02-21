@@ -1,7 +1,6 @@
 package client
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"net"
@@ -109,32 +108,65 @@ func (c *Client) msgRequestLoop(){
 
 		msgPackResponse, err := schema.ReadMsg(response.Body)
 		if msgPackResponse.MsgType == schema.MSG_TYPE_OPEN_CONN_RESPONSE {
-
+			msg := msgPackResponse.Msg.(*schema.OpenConnResponse)
+			
+			if c.Direction == schema.DIRECTION_REVERSE {
+				c.openReverseConn(msg.ConnId)
+			}
 		}
 	}
 }
 
 func (c *Client) openConn(connId string, conn net.Conn) error {
+	url := fmt.Sprintf("http://%v/msg?clientid=%v", c.ServerAddr, c.ClientId)
 	c.Conns.Store(connId, &common.Conn{
 		ConnId: connId,
 		Conn: conn,
 	})
 
-	readerMsgPack := &schema.MsgPack{
-		MsgType: schema.MSG_TYPE_OPEN_CONN_REQUEST,
-		Msg: &schema.OpenConnRequest {
-			ConnId: connId,
-			Role: schema.ROLE_READER,
-		},
-	}
+	//conn -> server
+	go func(){
+		readerMsgPack := &schema.MsgPack{
+			MsgType: schema.MSG_TYPE_OPEN_CONN_REQUEST,
+			Msg: &schema.OpenConnRequest {
+				ConnId: connId,
+				Role: schema.ROLE_READER,
+			},
+		}
 
-	readerMsgPack := &schema.MsgPack{
-		MsgType: schema.MSG_TYPE_OPEN_CONN_REQUEST,
-		Msg: &schema.OpenConnRequest {
-			ConnId: connId,
-			Role: schema.ROLE_READER,
-		},
-	}
+		r, w := io.Pipe()
+		go func(){
+			schema.WriteMsg(w, readerMsgPack)
+			io.Copy(w, conn)
+		}()
+
+		http.Post(url, "", r)
+	}()
+
+	//server -> conn
+	go func(){
+		writerMsgPack := &schema.MsgPack{
+			MsgType: schema.MSG_TYPE_OPEN_CONN_REQUEST,
+			Msg: &schema.OpenConnRequest {
+				ConnId: connId,
+				Role: schema.ROLE_WRITER,
+			},
+		}
+
+		r, w := io.Pipe()
+		go func(){
+			schema.WriteMsg(w, writerMsgPack)
+			w.Close()
+		}()
+
+		response , err := http.Post(url, "", r)
+		if err != nil {
+			return
+		}
+		io.Copy(conn, response.Body)
+	}()
+
+	return nil
 }
 
 func (c *Client) openReverseConn(connId string) error {
@@ -145,8 +177,7 @@ func (c *Client) openReverseConn(connId string) error {
 		return err
 	}
 
-
-
+	c.openConn(connId, conn)
 	return nil
 }
 

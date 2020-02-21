@@ -51,11 +51,28 @@ func (s *Server) registerHandler(w http.ResponseWriter, req *http.Request) {
 	)
 
 	s.Clients.Store(clientId, client)
-	err = client.Start()
-	logger.Error(err)
+	defer func(){
+		if err != nil {
+			s.Clients.Delete(clientId)
+		}
+	}()
+
+	if err = client.Start(); err != nil {
+		return
+	}
+
+	msgPack = & schema.MsgPack {
+		MsgType: schema.MSG_TYPE_OPEN_CONN_RESPONSE,
+		Msg: & schema.RegisterResponse {
+			ClientId: clientId,
+			Status: schema.STATUS_SUCCESS,
+		},
+	}
+
+	err = schema.WriteMsg(w, msgPack)
 }
 
-//client register
+//msg to client 
 func (s *Server) msgHandler(w http.ResponseWriter, req *http.Request) {
 	defer func(){
 		req.Body.Close()
