@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
 	"gogw/common"
@@ -21,8 +22,7 @@ type Client struct {
 	Description string
 	ClientId string
 
-	MsgPipeReader io.Reader
-	MsgPipeWriter io.Writer
+	Conns *sync.Map
 }
 
 func NewClient(
@@ -33,7 +33,6 @@ func NewClient(
 	protocol string,
 	description string,
 ) *Client {
-	r, w := io.Pipe()
 	return &Client {
 		ServerAddr: serverAddr,
 		SourceAddr: sourceAddr,
@@ -42,8 +41,7 @@ func NewClient(
 		Protocol: protocol,
 		Description: description,
 		ClientId: "",
-		MsgPipeReader: r,
-		MsgPipeWriter: w,
+		Conns: &sync.Map{},
 	}
 }
 

@@ -2,9 +2,7 @@ package server
 
 import (
 	"fmt"
-	"io"
 	"net"
-	"net/http"
 	"sync"
 
 	"gogw/common"
@@ -21,9 +19,9 @@ type Client struct {
 	SourceAddr string
 	Description string
 
-	Conns chan net.Conn
-	MsgConn *common.HttpConn
-
+	Conns *sync.Map
+	MsgChann chan *schema.MsgPack
+	
 	SpeedMonitor *SpeedMonitor
 }
 
@@ -35,8 +33,6 @@ func NewClient(
 	protocol string,
 	sourceAddr string,
 	description string,
-	w http.ResponseWriter,
-	r *http.Request,
 	) *Client {
 
 	return & Client {
@@ -48,46 +44,36 @@ func NewClient(
 		SourceAddr: sourceAddr,
 		Description: description,
 
-		Conns: make(chan net.Conn),
-		MsgConn: common.NewHttpConn(r, w),
+		Conns: &sync.Map{},
+		MsgChann: make(chan *schema.MsgPack),
 
 		SpeedMonitor: NewSpeedMonitor(),
 	}
 }
 
 func (c *Client) Start() (err error) {
-	msg := &schema.Msg{
-		MsgType: schema.MSG_SET_CLIENT_ID,
-		MsgContent: c.ClientId,
-	}
+	if c.Direction == schema.DIRECTION_REVERSE && 
+		c.Protocol == schema.PROTOCOL_TCP {
 
-	//send client id to client
-	if err = common.WriteMsg(c.MsgConn, msg); err != nil {
-		return err
-	}
-
-	if c.Direction == schema.DIRECTION_REVERSE {
-		if err := c.startReverseListener(); err != nil {
-			return err
-		}
-	}
-
-	//read msg from client
-	for {
-		if msg, err = common.ReadMsg(c.MsgConn); err != nil {
-			return err
-		}
-
-		c.msgHandler(msg)
+		return c.startReverseTCPListener()
 	}
 
 	return nil
 }
 
-func (c *Client) msgHandler(msg *schema.Msg) {
+func (c *Client) addConn(connId string, conn net.Conn) {
+	c.Conns.Store(connId, 
+		&common.Conn{
+		ConnId: connId,
+		Conn: conn,
+	})
 }
 
-func (c *Client) startReverseListener() error {
+func (c *Client) deleteConn(connId string) {
+	c.Conns.Delete(connId)
+}
+
+func (c *Client) startReverseTCPListener() error {
 	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", c.ToPort))
 	if err != nil {
 		return err
@@ -101,44 +87,21 @@ func (c *Client) startReverseListener() error {
 				return
 			}
 
-			if err = common.WriteMsg(c.MsgConn, &schema.Msg{MsgType: schema.MSG_OPEN_CONN}); err != nil {
-				logger.Error(err)
-				return
+			connId := common.UUID("connid")
+			c.addConn(connId, conn)
+
+			msgPack := & schema.MsgPack {
+				MsgType: schema.MSG_TYPE_OPEN_CONN_RESPONSE,
+				Msg: & schema.OpenConnResponse{
+					ConnId: connId,
+					Status: schema.STATUS_SUCCESS,
+				},
 			}
-			c.Conns <- conn
+
+			//TODO: add cleaner to avoid block here
+			c.MsgChann <- msgPack
 		}
 	}()
 
 	return nil
-}
-
-func (c *Client) ReverseNewConnHandler(w http.ResponseWriter, r *http.Request){
-	conn := <- c.Conns
-	var wg sync.WaitGroup
-	
-	wg.Add(1)
-	go func(){
-		defer func(){
-			if err := recover(); err != nil {
-				logger.Error(err)
-			}
-			wg.Done()
-		}()
-
-		io.Copy(conn, r.Body)
-	}()
-
-	wg.Add(1)
-	go func(){
-		defer func(){
-			if err := recover(); err != nil {
-				logger.Error(err)
-			}
-			wg.Done()
-		}()
-
-		io.Copy(w, conn)
-	}()
-
-	wg.Wait()
 }

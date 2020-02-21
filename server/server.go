@@ -3,85 +3,79 @@ package server
 import (
 	"fmt"
 	"net/http"
-	"strconv"
+	"sync"
 
 	"gogw/common"
 	"gogw/logger"
+	"gogw/schema"
 )
 
 type Server struct {
 	ServerAddr    string
-	Clients map[string]*Client
+	Clients *sync.Map
 }
 
 func NewServer(serverAddr string) *Server {
 	return &Server{
 		ServerAddr:    serverAddr,
-		Clients:       make(map[string]*Client),
+		Clients:       &sync.Map{},
 	}
 }
 
 //client register
 func (s *Server) registerHandler(w http.ResponseWriter, req *http.Request) {
-	clientId := common.UUID("clientid")
-
 	defer func(){
-		if err := recover(); err != nil {
-			logger.Error(err)
-		}
-
-		delete(s.Clients, clientId)
+		req.Body.Close()
 	}()
-	
-	clientAddr := req.RemoteAddr
-	toPort := req.URL.Query()["toport"][0]
-	direction := req.URL.Query()["direction"][0]
-	protocol := req.URL.Query()["protocol"][0]
-	sourceAddr := req.URL.Query()["sourceaddr"][0]
-	description := req.URL.Query()["description"][0]
 
-	toPortI, err := strconv.Atoi(toPort)
+	msgPack, err := schema.ReadMsg(req.Body)
 	if err != nil {
-		logger.Error(err)
 		return
 	}
 
+	msg, ok := msgPack.Msg.(*schema.RegisterRequest)
+	if ! ok {
+		return
+	}
+
+	clientId := common.UUID("clientid")
+
 	client := NewClient(
 		clientId,
-		clientAddr,
-		toPortI,
-		direction,
-		protocol,
-		sourceAddr,
-		description,
-		w,
-		req,
+		req.RemoteAddr,
+		msg.ToPort,
+		msg.Direction,
+		msg.Protocol,
+		msg.SourceAddr,
+		msg.Description,
 	)
 
-	s.Clients[clientId] = client
+	s.Clients.Store(clientId, client)
 	err = client.Start()
 	logger.Error(err)
 }
 
-//reverse client send new connection
-func (s *Server) reverseNewConnHandler(w http.ResponseWriter, req *http.Request) {
+//client register
+func (s *Server) msgHandler(w http.ResponseWriter, req *http.Request) {
 	defer func(){
-		if err := recover(); err != nil {
-			logger.Error(err)
-		}
+		req.Body.Close()
 	}()
-	
-	clientId := req.URL.Query()["clientid"][0]
-	if client, ok := s.Clients[clientId]; ok {
-		client.ReverseNewConnHandler(w, req)
+
+	if its, ok := req.URL.Query()["clientid"]; ok && len(its[0]) > 0 {
+		clientId := its[0]
+		if ci, ok := s.Clients.Load(clientId); ok {
+			client, _ := ci.(*Client)
+			client.HttpHandler(w, req)
+		}
 	}
 }
+
 
 func (s *Server) Start() {
 	logger.Info(fmt.Sprintf("\nserver start\nAddr: %v\n", s.ServerAddr))
 
 	http.HandleFunc("/register", s.registerHandler)
-	http.HandleFunc("/reversenewconn", s.reverseNewConnHandler)
+	http.HandleFunc("/msg", s.msgHandler)
 	http.HandleFunc("/monitor", s.monitorHandler)
 	http.Handle("/ui/", http.StripPrefix("/ui/", http.FileServer(http.Dir("./ui"))))
 	http.ListenAndServe(s.ServerAddr, nil)
