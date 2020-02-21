@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net"
@@ -58,64 +59,56 @@ func (c *Client) Start() {
 	}
 }
 
-func (c *Client) reverseNewConn() {
-	url := fmt.Sprintf("http://%v/reversenewconn?client=%v", c.ClientId)
-	if conn, err := net.Dial(c.Protocol, c.SourceAddr); err == nil {
-		if request, err := http.NewRequest("GET", url, conn); err == nil {
-			httpClient := &http.Client{}
-			if response, err := httpClient.Do(request); err == nil {
-				go func(){
-					defer func(){
-						if err := recover(); err != nil {
-							logger.Error(err)
-						}
-					}()
-
-					io.Copy(conn, response.Body)
-				}()
-			}
-		}
-	}
-}
-
-func (c *Client) msgHandler(msg *schema.Msg) {
-	if msg.MsgType == schema.MSG_OPEN_CONN {
-		c.reverseNewConn()
-
-	}else if msg.MsgType == schema.MSG_SET_CLIENT_ID {
-		c.ClientId = msg.MsgContent
-	}
-}
-
 func (c *Client) register() error {
-	url := fmt.Sprintf(
-		"http://%v/register?sourceaddr=%v&toport=%v&direction=%v&protocol=%v&description=%v", 
-		c.ServerAddr,
-		c.SourceAddr,
-		c.ToPort,
-		c.Direction,
-		c.Protocol,
-		c.Description,
-	)
+	url := fmt.Sprintf("http://%v/register", c.ServerAddr)
+	msgPack := &schema.MsgPack{
+		MsgType: schema.MSG_TYPE_REGISTER_REQUEST,
+		Msg: & schema.RegisterRequest {
+			SourceAddr: c.SourceAddr,
+			ToPort: c.ToPort,
+			Direction: c.Direction,
+			Protocol: c.Protocol,
+			Description: c.Description,
+		},
+	}
 
-	request, err := http.NewRequest("GET", url, c.MsgPipeReader)
+	data, err := schema.MarshalMsg(msgPack)
 	if err != nil {
 		return err
 	}
 
-	httpClient := &http.Client{}
-	response, err2 := httpClient.Do(request)
-	if err2 != nil {
-		return err2
+	response, err := http.Post(url, "", bytes.NewReader(data))
+	msgPack, err = schema.ReadMsg(response.Body)
+	if err != nil {
+		return err
 	}
 
-	//read msg 
+	msg, _ := msgPack.Msg.(*schema.RegisterResponse)
+	if msg.Status == schema.STATUS_SUCCESS {
+		c.ClientId = msg.ClientId
+	}else{
+		err = fmt.Errorf("register failed")
+	}
+
+	return err
+}
+
+func (c *Client) msgRequestLoop(){
+	url := fmt.Sprintf("http://%v/msg?clientid=%v", c.ServerAddr, c.ClientId)
+	msgPack := &schema.MsgPack{
+		MsgType: schema.MSG_TYPE_MSG_COMMON_REQUEST,
+	}
+
+	data, _ := schema.MarshalMsg(msgPack)
+
 	for {
-		msg, err := common.ReadMsg(response.Body)
+		response, err := http.Post(url, "", bytes.NewReader(data))
 		if err != nil {
-			return err
+			logger.Error(err)
+			return
 		}
 
-		c.msgHandler(msg)
+		msgPackResponse, err := schema.ReadMsg(response.Body)
+		
 	}
 }

@@ -22,6 +22,9 @@ const (
 )
 
 const (
+	MSG_TYPE_REGISTER_REQUEST = "registerrequest"
+	MSG_TYPE_REGISTER_RESPONSE = "registerresponse"
+
 	MSG_TYPE_OPEN_CONN_REQUEST = "openconnrequest"
 	MSG_TYPE_OPEN_CONN_RESPONSE = "openconnresponse"
 
