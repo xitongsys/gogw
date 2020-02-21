@@ -2,14 +2,10 @@ package server
 
 import (
 	"fmt"
-	"io/ioutil"
-	"net"
 	"net/http"
-	"sync"
-	"time"
+	"strconv"
 
 	"gogw/common"
-	"gogw/common/schema"
 	"gogw/logger"
 )
 
@@ -18,14 +14,15 @@ type Server struct {
 	Clients map[string]*Client
 }
 
-func NewServer(serverAddr string, timeoutSecond int) *Server {
+func NewServer(serverAddr string) *Server {
 	return &Server{
 		ServerAddr:    serverAddr,
-		Clients:       make(map[schema.ClientId]IClient),
+		Clients:       make(map[string]*Client),
 	}
 }
 
-func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) {
+//client register
+func (s *Server) registerHandler(w http.ResponseWriter, req *http.Request) {
 	clientId := common.UUID("clientid")
 
 	defer func(){
@@ -33,7 +30,7 @@ func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) 
 			logger.Error(err)
 		}
 
-		delete(server.Clients, clientid)
+		delete(s.Clients, clientId)
 	}()
 	
 	clientAddr := req.RemoteAddr
@@ -43,52 +40,49 @@ func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) 
 	sourceAddr := req.URL.Query()["sourceaddr"][0]
 	description := req.URL.Query()["description"][0]
 
+	toPortI, err := strconv.Atoi(toPort)
+	if err != nil {
+		logger.Error(err)
+		return
+	}
+
 	client := NewClient(
 		clientId,
 		clientAddr,
-		toPort,
+		toPortI,
 		direction,
 		protocol,
 		sourceAddr,
 		description,
 		w,
-		r,
+		req,
 	)
 
-	server.Clients[clientId] = client
-	err := client.Start()
-
+	s.Clients[clientId] = client
+	err = client.Start()
 	logger.Error(err)
 }
 
-func (server *Server) reverseNewConnHandler(w http.ResponseWriter, r *http.Request) {
+//reverse client send new connection
+func (s *Server) reverseNewConnHandler(w http.ResponseWriter, req *http.Request) {
 	defer func(){
 		if err := recover(); err != nil {
 			logger.Error(err)
 		}
 	}()
 	
-	clientId := req.URL.Query["clientid"][0]
-	if client, ok := server.Clients[clientId]; ok {
-		client.ReverseNewConnHandler(w, r)
+	clientId := req.URL.Query()["clientid"][0]
+	if client, ok := s.Clients[clientId]; ok {
+		client.ReverseNewConnHandler(w, req)
 	}
 }
 
-func (server *Server) Start() {
-	logger.Info(fmt.Sprintf("\nserver start\nAddr: %v\nTimeoutSecond: %v\n", server.ServerAddr, int(server.TimeoutSecond.Seconds())))
+func (s *Server) Start() {
+	logger.Info(fmt.Sprintf("\nserver start\nAddr: %v\n", s.ServerAddr))
 
-	http.HandleFunc("/register", server.registerHandler)
-	http.HandleFunc("/reversenewconn", server.packHandler)
-	http.HandleFunc("/monitor", server.monitorHandler)
+	http.HandleFunc("/register", s.registerHandler)
+	http.HandleFunc("/reversenewconn", s.reverseNewConnHandler)
+	http.HandleFunc("/monitor", s.monitorHandler)
 	http.Handle("/ui/", http.StripPrefix("/ui/", http.FileServer(http.Dir("./ui"))))
-
-	//cleaner
-	go func() {
-		for {
-			server.cleaner()
-			time.Sleep(time.Second * 30)
-		}
-	}()
-
-	http.ListenAndServe(server.ServerAddr, nil)
+	http.ListenAndServe(s.ServerAddr, nil)
 }

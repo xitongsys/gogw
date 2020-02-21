@@ -5,6 +5,8 @@ import (
 	"io"
 
 	"github.com/vmihailenco/msgpack/v4"
+
+	"gogw/schema"
 )
 
 var UUIDMAP map[string]int = make(map[string]int)
@@ -19,9 +21,8 @@ func UUID(key string) string {
 }
 
 func ReadObject(r io.Reader, o interface{}) (err error) {
-	lenBuf = []byte{0}
+	lenBuf := []byte{0}
 	data := []byte{}
-	var n int 
 	for {
 		if _, err = io.ReadAtLeast(r, lenBuf, 1); err != nil {
 			return err
@@ -34,12 +35,14 @@ func ReadObject(r io.Reader, o interface{}) (err error) {
 		}
 
 		buf := make([]byte, l)
-		if n, err = io.ReadAtLeast(r, buf, l); err != nil {
+		if _, err = io.ReadAtLeast(r, buf, l); err != nil {
 			return err
 		}
 
 		data = append(data, buf...)
 	}
+
+	return nil
 } 
 
 func WriteObject(w io.Writer, o interface{}) (err error){ 
@@ -71,4 +74,14 @@ func WriteObject(w io.Writer, o interface{}) (err error){
 		l -= cl
 	}
 
+	return nil
+}
+
+func ReadMsg(r io.Reader) (*schema.Msg, error) {
+	msg := &schema.Msg{}
+	return msg, ReadObject(r, msg)
+}
+
+func WriteMsg(w io.Writer, msg *schema.Msg) error {
+	return WriteObject(w, msg)
 }

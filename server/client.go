@@ -3,11 +3,9 @@ package server
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"sync"
-	"time"
 
 	"gogw/common"
 	"gogw/logger"
@@ -24,7 +22,6 @@ type Client struct {
 	Description string
 
 	Conns chan net.Conn
-
 	MsgConn *common.HttpConn
 
 	SpeedMonitor *SpeedMonitor
@@ -55,21 +52,29 @@ func NewClient(
 		MsgConn: common.NewHttpConn(r, w),
 
 		SpeedMonitor: NewSpeedMonitor(),
-		LastHeartbeat: time.Now(),
 	}
 }
 
-func (c *Client) Start() error {
-	msg := &schema.Msg{}
+func (c *Client) Start() (err error) {
+	msg := &schema.Msg{
+		MsgType: schema.MSG_SET_CLIENT_ID,
+		MsgContent: c.ClientId,
+	}
+
+	//send client id to client
+	if err = common.WriteMsg(c.MsgConn, msg); err != nil {
+		return err
+	}
 
 	if c.Direction == schema.DIRECTION_REVERSE {
-		if err := c.startReverse(); err != nil {
+		if err := c.startReverseListener(); err != nil {
 			return err
 		}
 	}
 
+	//read msg from client
 	for {
-		if err := common.ReadObject(c.MsgConn, msg); err != nil {
+		if msg, err = common.ReadMsg(c.MsgConn); err != nil {
 			return err
 		}
 
@@ -82,16 +87,7 @@ func (c *Client) Start() error {
 func (c *Client) msgHandler(msg *schema.Msg) {
 }
 
-func (c *Client) readMsg() (*schema.Msg, error) {
-	msg := &schema.Msg{}
-	return msg, common.ReadObject(msg)
-}
-
-func (c *Client) writeMsg(msg *schema.Msg) error {
-	return common.WriteObject(c.MsgConn, msg)
-}
-
-func (c *Client) startReverse() error {
+func (c *Client) startReverseListener() error {
 	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", c.ToPort))
 	if err != nil {
 		return err
@@ -101,11 +97,14 @@ func (c *Client) startReverse() error {
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
-				logger.Warn(err)
+				logger.Error(err)
 				return
 			}
 
-			c.writeMsg(&schema.Msg{MsgType: schema.MSG_OPEN_CONN})
+			if err = common.WriteMsg(c.MsgConn, &schema.Msg{MsgType: schema.MSG_OPEN_CONN}); err != nil {
+				logger.Error(err)
+				return
+			}
 			c.Conns <- conn
 		}
 	}()

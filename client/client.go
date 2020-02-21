@@ -1,14 +1,15 @@
 package client
 
 import (
-	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"net"
 	"net/http"
 	"time"
 
-	"gogw/common/schema"
+	"gogw/common"
 	"gogw/logger"
+	"gogw/schema"
 )
 
 type Client struct {
@@ -18,19 +19,40 @@ type Client struct {
 	Direction string
 	Protocol string
 	Description string
-	ClientId schema.ClientId
+	ClientId string
 
-	MsgReader io.Reader
-	MsgWriter io.Writer
+	MsgPipeReader io.Reader
+	MsgPipeWriter io.Writer
 }
 
+func NewClient(
+	serverAddr string,
+	sourceAddr string,
+	toPort int,
+	direction string,
+	protocol string,
+	description string,
+) *Client {
+	r, w := io.Pipe()
+	return &Client {
+		ServerAddr: serverAddr,
+		SourceAddr: sourceAddr,
+		ToPort: toPort,
+		Direction: direction,
+		Protocol: protocol,
+		Description: description,
+		ClientId: "",
+		MsgPipeReader: r,
+		MsgPipeWriter: w,
+	}
+}
 
-func (client *Client) Start() {
-	logger.Info(fmt.Sprintf("\nclient start\nServer: %v\nSourceAddr: %v\nToPort: %v\nDirection: %v\nProtocol: %v\nDescription: %v\nTimeoutSecond: %v\n", 
-	client.ServerAddr, client.SourceAddr, client.ToPort, client.Direction, client.Protocol, client.Description, int(client.TimeoutSecond.Seconds())))
+func (c *Client) Start() {
+	logger.Info(fmt.Sprintf("\nclient start\nServer: %v\nSourceAddr: %v\nToPort: %v\nDirection: %v\nProtocol: %v\nDescription: %v\n", 
+	c.ServerAddr, c.SourceAddr, c.ToPort, c.Direction, c.Protocol, c.Description))
 
 	for {
-		if err := client.register(); err != nil {
+		if err := c.register(); err != nil {
 			logger.Error(err)
 			time.Sleep(2 * time.Second)
 			continue
@@ -38,29 +60,64 @@ func (client *Client) Start() {
 	}
 }
 
-func (client *Client) register() error {
+func (c *Client) reverseNewConn() {
+	url := fmt.Sprintf("http://%v/reversenewconn?client=%v", c.ClientId)
+	if conn, err := net.Dial(c.Protocol, c.SourceAddr); err == nil {
+		if request, err := http.NewRequest("GET", url, conn); err == nil {
+			httpClient := &http.Client{}
+			if response, err := httpClient.Do(request); err == nil {
+				go func(){
+					defer func(){
+						if err := recover(); err != nil {
+							logger.Error(err)
+						}
+					}()
+
+					io.Copy(conn, response.Body)
+				}()
+			}
+		}
+	}
+}
+
+func (c *Client) msgHandler(msg *schema.Msg) {
+	if msg.MsgType == schema.MSG_OPEN_CONN {
+		c.reverseNewConn()
+
+	}else if msg.MsgType == schema.MSG_SET_CLIENT_ID {
+		c.ClientId = msg.MsgContent
+	}
+}
+
+func (c *Client) register() error {
 	url := fmt.Sprintf(
 		"http://%v/register?sourceaddr=%v&toport=%v&direction=%v&protocol=%v&description=%v", 
-		client.ServerAddr,
-		client.SourceAddr,
-		client.ToPort,
-		client.Direction,
-		client.Protocol,
-		clinet.Description,
+		c.ServerAddr,
+		c.SourceAddr,
+		c.ToPort,
+		c.Direction,
+		c.Protocol,
+		c.Description,
 	)
 
-	request, err := http.NewRequest("GET", url, )
+	request, err := http.NewRequest("GET", url, c.MsgPipeReader)
 	if err != nil {
 		return err
 	}
 
-	client := &http.Client()
-	response, err2 := client.Do(request)
+	httpClient := &http.Client{}
+	response, err2 := httpClient.Do(request)
 	if err2 != nil {
 		return err2
 	}
 
+	//read msg 
+	for {
+		msg, err := common.ReadMsg(response.Body)
+		if err != nil {
+			return err
+		}
 
-	
-
+		c.msgHandler(msg)
+	}
 }

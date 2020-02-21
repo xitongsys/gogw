@@ -30,12 +30,19 @@ func main(){
 	}
 
 	if *role == "server" {
-		server := server.NewServer(cfg.Server.ServerAddr, cfg.Server.TimeoutSecond)
+		server := server.NewServer(cfg.Server.ServerAddr)
 		server.Start()
 	}
 
 	if *role == "client" {
-		client := client.NewClient(cfg.Client.ServerAddr, cfg.Client.SourceAddr, cfg.Client.ToPort, cfg.Client.Direction, cfg.Client.Protocol, cfg.Client.Description, cfg.Client.TimeoutSecond)
+		client := client.NewClient(
+			cfg.Client.ServerAddr, 
+			cfg.Client.SourceAddr, 
+			cfg.Client.ToPort, 
+			cfg.Client.Direction, 
+			cfg.Client.Protocol, 
+			cfg.Client.Description,
+		)
 		client.Start()
 	}
 }

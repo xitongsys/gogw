@@ -12,12 +12,10 @@ type ClientConfig struct {
 	Protocol string
 	Direction string
 	Description string
-	TimeoutSecond int
 }
 
 type ServerConfig struct {
 	ServerAddr string
-	TimeoutSecond int
 }
 
 type Config struct {
