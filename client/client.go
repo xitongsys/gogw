@@ -72,7 +72,10 @@ func (c *Client) register() error {
 	}
 
 	r, w := io.Pipe()
-	go schema.WriteMsg(w, msgPack)
+	go func(){
+		schema.WriteMsg(w, msgPack)
+		w.Close()
+	}()
 
 	response, err := http.Post(url, "", r)
 	msgPack, err = schema.ReadMsg(response.Body)

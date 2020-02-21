@@ -30,6 +30,7 @@ func (s *Server) registerHandler(w http.ResponseWriter, req *http.Request) {
 
 	msgPack, err := schema.ReadMsg(req.Body)
 	if err != nil {
+		logger.Error(err)
 		return
 	}
 
