@@ -63,7 +63,7 @@ func (s *Server) registerHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	msgPack = & schema.MsgPack {
-		MsgType: schema.MSG_TYPE_OPEN_CONN_RESPONSE,
+		MsgType: schema.MSG_TYPE_REGISTER_RESPONSE,
 		Msg: & schema.RegisterResponse {
 			ClientId: clientId,
 			Status: schema.STATUS_SUCCESS,

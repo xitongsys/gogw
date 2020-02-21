@@ -17,10 +17,12 @@ func ReadMsg(r io.Reader) (*MsgPack, error) {
 
 	length := binary.LittleEndian.Uint32(lengthHeaderData)
 	data := make([]byte, length)
+
 	_, err = io.ReadAtLeast(r, data, int(length))
 	if err != nil {
 		return nil, err
 	}
+
 	return unmarshalMsg(data)
 }
 
@@ -59,15 +61,13 @@ func unmarshalMsg(data []byte) (*MsgPack, error) {
 }
 
 func WriteMsg(w io.Writer, msgPack *MsgPack) error {
-	data := make([]byte, 4)
-	binary.LittleEndian.PutUint32(data, 0)
 	data, err := marshalMsg(msgPack)
 	if err != nil {
 		return err
 	}
 
 	length := uint32(len(data))
-	lengthHeaderData := make([]byte,4)
+	lengthHeaderData := make([]byte, 4)
 	binary.LittleEndian.PutUint32(lengthHeaderData, length)
 	data = append(lengthHeaderData, data...)
 	_, err = w.Write(data)

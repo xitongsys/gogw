@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net"
@@ -55,10 +56,13 @@ func (c *Client) Start() {
 			time.Sleep(2 * time.Second)
 			continue
 		}
+
+		c.msgRequestLoop()
 	}
 }
 
 func (c *Client) register() error {
+	logger.Info("start register")
 	url := fmt.Sprintf("http://%v/register", c.ServerAddr)
 	msgPack := &schema.MsgPack{
 		MsgType: schema.MSG_TYPE_REGISTER_REQUEST,
@@ -78,8 +82,13 @@ func (c *Client) register() error {
 	}()
 
 	response, err := http.Post(url, "", r)
+	if err != nil {
+		return err
+	}
+
 	msgPack, err = schema.ReadMsg(response.Body)
 	if err != nil {
+		logger.Error(err)
 		return err
 	}
 
@@ -99,11 +108,12 @@ func (c *Client) msgRequestLoop(){
 		MsgType: schema.MSG_TYPE_MSG_COMMON_REQUEST,
 	}
 
-	r, w := io.Pipe()
-	go schema.WriteMsg(w, msgPack)
+	var buf bytes.Buffer
+	schema.WriteMsg(&buf, msgPack)
+	data := buf.Bytes()
 
 	for {
-		response, err := http.Post(url, "", r)
+		response, err := http.Post(url, "", bytes.NewReader(data))
 		if err != nil {
 			logger.Error(err)
 			return
