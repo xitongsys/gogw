@@ -4,9 +4,9 @@ import (
 	"io"
 	"net/http"
 
+	"gogw/common"
 	"gogw/logger"
 	"gogw/schema"
-	"gogw/common"
 )
 
 func (c *Client) HttpHandler(w http.ResponseWriter, req *http.Request) {
@@ -31,6 +31,8 @@ func (c *Client) openConnHandler(msg *schema.OpenConnRequest, w http.ResponseWri
 		//TODO: forward client
 
 	}else if msg.Role == schema.ROLE_READER {
+		logger.Debug("reader: ", msg.ConnId)
+
 		if conni, ok := c.Conns.Load(msg.ConnId); ok {
 			conn, _ := conni.(*common.Conn)
 			_, err := io.Copy(conn.Conn, req.Body)
@@ -38,8 +40,19 @@ func (c *Client) openConnHandler(msg *schema.OpenConnRequest, w http.ResponseWri
 		}	
 
 	}else if msg.Role == schema.ROLE_WRITER {
+		logger.Debug("writer: ", msg.ConnId)
+
 		if conni, ok := c.Conns.Load(msg.ConnId); ok {
 			conn, _ := conni.(*common.Conn)
+
+			data := make([]byte, 1024*1024)
+			for {
+				n, _ := conn.Conn.Read(data)
+				w.Write(data[:n])
+				ww, _ := w.(http.Flusher)
+				ww.Flush()
+			}
+			
 			_, err := io.Copy(w, conn.Conn)
 			logger.Error(err)
 		}

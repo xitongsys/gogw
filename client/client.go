@@ -154,6 +154,8 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 		}()
 
 		http.Post(url, "", r)
+
+		logger.Debug("conn->server done")
 	}()
 
 	//server -> conn
@@ -176,7 +178,9 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 		if err != nil {
 			return
 		}
+		
 		io.Copy(conn, response.Body)
+		logger.Debug("server -> conn done")
 	}()
 
 	return nil
