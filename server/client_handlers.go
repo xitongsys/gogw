@@ -9,6 +9,10 @@ import (
 	"gogw/schema"
 )
 
+const (
+	BUFSIZE = 1024 * 1024
+)
+
 func (c *Client) HttpHandler(w http.ResponseWriter, req *http.Request) {
 	msgPack, err := schema.ReadMsg(req.Body)
 	if err != nil {
@@ -45,15 +49,23 @@ func (c *Client) openConnHandler(msg *schema.OpenConnRequest, w http.ResponseWri
 		if conni, ok := c.Conns.Load(msg.ConnId); ok {
 			conn, _ := conni.(*common.Conn)
 
-			data := make([]byte, 1024*1024)
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("Connection", "keep-alive")
+
+			data := make([]byte, BUFSIZE)
+			var err error 
+			var n int 
 			for {
-				n, _ := conn.Conn.Read(data)
+				n, err = conn.Conn.Read(data)
+				if err != nil {
+					break
+				}
 				w.Write(data[:n])
 				ww, _ := w.(http.Flusher)
 				ww.Flush()
 			}
 			
-			_, err := io.Copy(w, conn.Conn)
 			logger.Error(err)
 		}
 
