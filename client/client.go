@@ -72,12 +72,10 @@ func (c *Client) register() error {
 		},
 	}
 
-	data, err := schema.MarshalMsg(msgPack)
-	if err != nil {
-		return err
-	}
+	r, w := io.Pipe()
+	go schema.WriteMsg(w, msgPack)
 
-	response, err := http.Post(url, "", bytes.NewReader(data))
+	response, err := http.Post(url, "", r)
 	msgPack, err = schema.ReadMsg(response.Body)
 	if err != nil {
 		return err
@@ -99,16 +97,56 @@ func (c *Client) msgRequestLoop(){
 		MsgType: schema.MSG_TYPE_MSG_COMMON_REQUEST,
 	}
 
-	data, _ := schema.MarshalMsg(msgPack)
+	r, w := io.Pipe()
+	go schema.WriteMsg(w, msgPack)
 
 	for {
-		response, err := http.Post(url, "", bytes.NewReader(data))
+		response, err := http.Post(url, "", r)
 		if err != nil {
 			logger.Error(err)
 			return
 		}
 
 		msgPackResponse, err := schema.ReadMsg(response.Body)
-		
+		if msgPackResponse.MsgType == schema.MSG_TYPE_OPEN_CONN_RESPONSE {
+
+		}
 	}
 }
+
+func (c *Client) openConn(connId string, conn net.Conn) error {
+	c.Conns.Store(connId, &common.Conn{
+		ConnId: connId,
+		Conn: conn,
+	})
+
+	readerMsgPack := &schema.MsgPack{
+		MsgType: schema.MSG_TYPE_OPEN_CONN_REQUEST,
+		Msg: &schema.OpenConnRequest {
+			ConnId: connId,
+			Role: schema.ROLE_READER,
+		},
+	}
+
+	readerMsgPack := &schema.MsgPack{
+		MsgType: schema.MSG_TYPE_OPEN_CONN_REQUEST,
+		Msg: &schema.OpenConnRequest {
+			ConnId: connId,
+			Role: schema.ROLE_READER,
+		},
+	}
+}
+
+func (c *Client) openReverseConn(connId string) error {
+	var conn net.Conn
+	var err error
+	conn, err = net.Dial(c.Protocol, c.SourceAddr)
+	if err != nil {
+		return err
+	}
+
+
+
+	return nil
+}
+
