@@ -64,6 +64,15 @@ func (c *Client) Start() (err error) {
 	return nil
 }
 
+func (c *Client) Stop() {
+	close(c.MsgChann)
+	c.Conns.Range(func (k,v interface{}) bool {
+		conn, _ := v.(*common.Conn)
+		conn.Conn.Close()
+		return true
+	})
+}
+
 func (c *Client) addConn(connId string, conn net.Conn) {
 	c.Conns.Store(connId, 
 		&common.Conn{

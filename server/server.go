@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
 	"gogw/common"
 	"gogw/logger"
@@ -13,12 +14,15 @@ import (
 type Server struct {
 	ServerAddr    string
 	Clients *sync.Map
+
+	TimeoutSecond time.Duration
 }
 
-func NewServer(serverAddr string) *Server {
+func NewServer(serverAddr string, timeoutSecond int) *Server {
 	return &Server{
 		ServerAddr:    serverAddr,
 		Clients:       &sync.Map{},
+		TimeoutSecond: time.Second * time.Duration(timeoutSecond),
 	}
 }
 
@@ -88,9 +92,32 @@ func (s *Server) msgHandler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func (s *Server) cleanerLoop() {
+	for {
+		t := time.Now()
+		shouldDelete := []string{}
+		s.Clients.Range(func (k, v interface{}) bool {
+			client, _ := v.(*Client)
+			if t.Sub(client.LastHeartbeatTime).Milliseconds() > s.TimeoutSecond.Milliseconds() {
+				shouldDelete = append(shouldDelete, client.ClientId)
+				client.Stop()
+			}
+			return true
+		})
+
+		for _, clientId := range shouldDelete {
+			s.Clients.Delete(clientId)
+		}
+
+		time.Sleep(time.Second * 10)
+	}
+}
 
 func (s *Server) Start() {
 	logger.Info(fmt.Sprintf("\nserver start\nAddr: %v\n", s.ServerAddr))
+
+	//start client cleaner
+	go s.cleanerLoop()
 
 	http.HandleFunc("/register", s.registerHandler)
 	http.HandleFunc("/msg", s.msgHandler)

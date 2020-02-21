@@ -50,6 +50,9 @@ func (c *Client) Start() {
 	logger.Info(fmt.Sprintf("\nclient start\nServer: %v\nSourceAddr: %v\nToPort: %v\nDirection: %v\nProtocol: %v\nDescription: %v\n", 
 	c.ServerAddr, c.SourceAddr, c.ToPort, c.Direction, c.Protocol, c.Description))
 
+	//start heartbeat
+	go c.heartbeatLoop()
+
 	for {
 		if err := c.register(); err != nil {
 			logger.Error(err)
@@ -58,6 +61,19 @@ func (c *Client) Start() {
 		}
 
 		c.msgRequestLoop()
+	}
+}
+
+func (c *Client) heartbeatLoop() {
+	for {
+		if c.ClientId != "" {
+			url := fmt.Sprintf("http://%s/heartbeat?clientid=%s", c.ServerAddr, c.ClientId)
+			_, err := http.Get(url)
+			if err != nil {
+				logger.Error(err)
+			}
+		}
+		time.Sleep(3 * time.Second)
 	}
 }
 
@@ -178,7 +194,7 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 		if err != nil {
 			return
 		}
-		
+
 		io.Copy(conn, response.Body)
 		logger.Debug("server -> conn done")
 	}()
