@@ -48,8 +48,8 @@ func main(){
 				cfg.Description,
 			)
 
+			wg.Add(1)
 			go func(){
-				wg.Add(1)
 				defer wg.Done()
 				c.Start()
 			}()
