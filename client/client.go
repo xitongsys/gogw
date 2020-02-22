@@ -60,6 +60,10 @@ func (c *Client) Start() {
 			continue
 		}
 
+		if c.Direction == schema.DIRECTION_FORWARD {
+			c.startForwardListener()
+		}
+
 		c.msgRequestLoop()
 	}
 }
@@ -211,6 +215,60 @@ func (c *Client) openReverseConn(connId string) error {
 	}
 
 	c.openConn(connId, conn)
+	return nil
+}
+
+func (c *Client) startForwardListener() error {
+	url := fmt.Sprintf("http://%v/msg?clientid=%v", c.ServerAddr, c.ClientId)
+	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", c.ToPort))
+	if err != nil {
+		return err
+	}
+	
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				logger.Error(err)
+				return
+			}
+
+			msgPack := & schema.MsgPack {
+				MsgType: schema.MSG_TYPE_OPEN_CONN_REQUEST,
+				Msg: & schema.OpenConnRequest{
+					Role: schema.ROLE_QUERY_CONNID,
+				},
+			}
+
+			r, w := io.Pipe()
+			go func(){
+				schema.WriteMsg(w, msgPack)
+				w.Close()
+			}()
+
+			response, err := http.Post(url, "", r)
+			if err != nil {
+				logger.Error(err)
+				continue
+			}
+
+			msgPack, err = schema.ReadMsg(response.Body)
+			if err != nil || msgPack.MsgType != schema.MSG_TYPE_OPEN_CONN_RESPONSE{
+				logger.Error(err)
+				continue
+			}
+
+			msg, ok := msgPack.Msg.(*schema.OpenConnResponse)
+			if !ok || msg.Status != schema.STATUS_SUCCESS {
+				logger.Error("msg error")
+				continue
+			}
+
+			connId := msg.ConnId
+			c.openConn(connId, conn)
+		}
+	}()
+
 	return nil
 }
 

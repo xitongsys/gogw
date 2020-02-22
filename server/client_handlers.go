@@ -2,6 +2,7 @@ package server
 
 import (
 	"io"
+	"net"
 	"net/http"
 
 	"gogw/common"
@@ -32,7 +33,28 @@ func (c *Client) HttpHandler(w http.ResponseWriter, req *http.Request) {
 
 func (c *Client) openConnHandler(msg *schema.OpenConnRequest, w http.ResponseWriter, req *http.Request) {
 	if msg.Role == schema.ROLE_QUERY_CONNID {
-		//TODO: forward client
+		//Forward client: open a new conn
+		msgPack := & schema.MsgPack {
+			MsgType: schema.MSG_TYPE_OPEN_CONN_RESPONSE,
+			Msg: & schema.OpenConnResponse {
+				ConnId: "",
+				Status: schema.STATUS_FAILED,
+			},
+		}
+
+		var conn net.Conn
+		var err error
+		if conn, err = net.Dial(c.Protocol, c.SourceAddr); err == nil {
+			connId := common.UUID("connid")
+			msgPack.Msg = & schema.OpenConnResponse {
+				ConnId: connId,
+				Status: schema.STATUS_SUCCESS,
+			}
+
+			c.addConn(connId, conn)
+		}
+
+		schema.WriteMsg(w, msgPack)
 
 	}else if msg.Role == schema.ROLE_READER {
 		logger.Debug("reader: ", msg.ConnId)

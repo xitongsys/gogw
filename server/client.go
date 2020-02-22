@@ -110,7 +110,6 @@ func (c *Client) startReverseTCPListener() error {
 				},
 			}
 
-			//TODO: add cleaner to avoid block here
 			c.MsgChann <- msgPack
 		}
 	}()
