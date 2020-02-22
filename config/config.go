@@ -12,7 +12,6 @@ type ClientConfig struct {
 	Protocol string
 	Direction string
 	Description string
-	TimeoutSecond int
 }
 
 type ServerConfig struct {

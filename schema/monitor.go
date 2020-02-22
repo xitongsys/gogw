@@ -18,7 +18,7 @@ func (ai *AllInfo) Unmarshal(data []byte) error {
 }
 
 type ClientInfo struct {
-	ClientId ClientId
+	ClientId string
 	ClientAddr string
 	Port int
 	Protocol string

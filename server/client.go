@@ -1,146 +1,189 @@
-package server 
+package server
 
 import (
-	"time"
-	"net/http"
-	"io/ioutil"
+	"fmt"
+	"net"
 	"sync"
-	
+	"time"
 
-	"gogw/common/schema"
+	"gogw/common"
 	"gogw/logger"
+	"gogw/schema"
 )
 
 type Client struct {
-	ClientId schema.ClientId
-	ClientAddr string
-	ToPort int
-	Direction string
-	Protocol string
-	SourceAddr string
+	ClientId    string
+	ClientAddr  string
+	ToPort      int
+	Direction   string
+	Protocol    string
+	SourceAddr  string
 	Description string
 
-	Lock sync.Mutex
-	FromClientChanns map[schema.ConnectionId]chan *schema.PackRequest
-	ToClientChanns map[schema.ConnectionId]chan *schema.PackResponse
-	CmdToClientChann chan *schema.PackResponse
+	Conns    *sync.Map
+	ConnNumber int
+	MsgChann chan *schema.MsgPack
 
-	SpeedMonitor *SpeedMonitor
-	LastHeartbeat time.Time
+	TCPListener net.Listener
+	UDPListener *net.UDPConn
+	UDPAddrToConnId map[string]string
 
-	CmdHandler func(packRequest *schema.PackRequest) *schema.PackResponse
+	LastHeartbeatTime time.Time
+	SpeedMonitor      *SpeedMonitor
 }
 
+func NewClient(
+	clientId string,
+	clientAddr string,
+	toPort int,
+	direction string,
+	protocol string,
+	sourceAddr string,
+	description string,
+) *Client {
 
-func (client *Client) GetClientId() schema.ClientId {
-	return client.ClientId
+	return &Client{
+		ClientId:    clientId,
+		ClientAddr:  clientAddr,
+		ToPort:      toPort,
+		Direction:   direction,
+		Protocol:    protocol,
+		SourceAddr:  sourceAddr,
+		Description: description,
+
+		Conns:    &sync.Map{},
+		ConnNumber: 0,
+		MsgChann: make(chan *schema.MsgPack),
+
+		UDPAddrToConnId: make(map[string]string),
+
+		LastHeartbeatTime: time.Now(),
+		SpeedMonitor:      NewSpeedMonitor(),
+	}
 }
 
-func (client *Client) GetClientAddr() string {
-	return client.ClientAddr
+func (c *Client) Start() (err error) {
+	if c.Direction == schema.DIRECTION_REVERSE {
+		if c.Protocol == schema.PROTOCOL_TCP {
+			return c.startReverseTCPListener()
+		}
+
+		if c.Protocol == schema.PROTOCOL_UDP {
+			return c.startReverseUDPListener()
+		}
+	}
+
+	return nil
 }
 
-func (client *Client) GetToPort() int {
-	return client.ToPort
+func (c *Client) Stop() {
+	close(c.MsgChann)
+	c.Conns.Range(func(k, v interface{}) bool {
+		conn, _ := v.(*common.Conn)
+		conn.Conn.Close()
+		return true
+	})
+
+	if c.TCPListener != nil {
+		c.TCPListener.Close()
+	}
+
+	if c.UDPListener != nil {
+		c.UDPListener.Close()
+	}
 }
 
-func (client *Client) GetDirection() string {
-	return client.Direction
+func (c *Client) addConn(connId string, conn net.Conn) {
+	c.ConnNumber++
+	c.Conns.Store(connId,
+		&common.Conn{
+			ConnId: connId,
+			Conn:   conn,
+		})
 }
 
-func (client *Client) GetProtocol() string {
-	return client.Protocol
+func (c *Client) deleteConn(connId string) {
+	c.ConnNumber--
+	c.Conns.Delete(connId)
+	if c.UDPAddrToConnId != nil {
+		delete(c.UDPAddrToConnId, connId)
+	}
 }
 
-func (client *Client) GetSourceAddr() string {
-	return client.SourceAddr
-}
+func (c *Client) startReverseTCPListener() (err error) {
+	c.TCPListener, err = net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", c.ToPort))
+	if err != nil {
+		return err
+	}
 
-func (client *Client) GetDescription() string {
-	return client.Description
-}
+	go func() {
+		for {
+			conn, err := c.TCPListener.Accept()
+			if err != nil {
+				logger.Error(err)
+				return
+			}
 
-func (client *Client) GetConnectionNumber() int {
-	return len(client.FromClientChanns)
-}
+			connId := common.UUID("connid")
+			c.addConn(connId, conn)
 
-func (client *Client) GetSpeedMonitor() *SpeedMonitor {
-	return client.SpeedMonitor
-}
+			msgPack := &schema.MsgPack{
+				MsgType: schema.MSG_TYPE_OPEN_CONN_RESPONSE,
+				Msg: &schema.OpenConnResponse{
+					ConnId: connId,
+					Status: schema.STATUS_SUCCESS,
+				},
+			}
 
-func (client *Client) GetLastHeartbeat() time.Time {
-	return client.LastHeartbeat
-}
-
-func (client *Client) SetLastHeartbeat(t time.Time) {
-	client.LastHeartbeat = t
-}
-
-func (client *Client) RequestHandler(w http.ResponseWriter, req *http.Request) {
-	defer func(){
-		if err := recover(); err != nil {
-			logger.Warn(err)
+			c.MsgChann <- msgPack
 		}
 	}()
 
-	bs, err := ioutil.ReadAll(req.Body)
+	return nil
+}
+
+func (c *Client) startReverseUDPListener() (err error) {
+	c.UDPListener, err = net.ListenUDP(c.Protocol, &net.UDPAddr{IP: net.ParseIP("0.0.0.0"), Port: c.ToPort})
 	if err != nil {
-		logger.Error(err)
-		return
+		return err
 	}
 
-	logger.Debug("from client ", string(bs))
-	client.SpeedMonitor.Add(-1, int64(len(bs)))
+	go func() {
+		bs := make([]byte, PACKSIZE)
+		for {
+			n, remoteAddr, err := c.UDPListener.ReadFromUDP(bs)
+			if err != nil {
+				logger.Error(err)
+				return
+			}
 
-	packRequest := &schema.PackRequest{}
-	if err = packRequest.Unmarshal(bs); err != nil {
-		logger.Error(err)
-		return
-	}
+			addr := remoteAddr.String()
+			if connId, ok := c.UDPAddrToConnId[addr]; !ok {
+				connId = common.UUID("connid")
+				conn := common.NewUDPConn(remoteAddr, c.UDPListener)
+				c.addConn(connId, conn)
+				c.UDPAddrToConnId[remoteAddr.String()] = connId
 
-	if packRequest.Type == schema.CLIENT_SEND_PACK {
-		client.Lock.Lock()
-		chann, ok := client.FromClientChanns[packRequest.ConnId]
-		client.Lock.Unlock()
-		if ok {
-			chann <- packRequest
-		}
+				msgPack := &schema.MsgPack{
+					MsgType: schema.MSG_TYPE_OPEN_CONN_RESPONSE,
+					Msg: &schema.OpenConnResponse{
+						ConnId: connId,
+						Status: schema.STATUS_SUCCESS,
+					},
+				}
 
-	}else if packRequest.Type == schema.CLIENT_REQUEST_PACK {
-		client.Lock.Lock()
-		chann, ok := client.ToClientChanns[packRequest.ConnId]
-		client.Lock.Unlock()
+				c.MsgChann <- msgPack
+			}
 
-		if ok {
-			if packResponse, ok := <- chann; ok {
-				data, _ := packResponse.Marshal()
-
-				//logger.Debug("to client", string(packResponse))
-				client.SpeedMonitor.Add(int64(len(data)), -1)
-
-				w.Write(data)
+			connId := c.UDPAddrToConnId[addr]
+			if value, ok := c.Conns.Load(connId); ok {
+				conn, _ := value.(*common.Conn)
+				if udpConn, ok := conn.Conn.(*common.UDPConn); ok {
+					udpConn.PipeWriter.Write(bs[:n])
+				}
 			}
 		}
+	}()
 
-	}else if packRequest.Type == schema.CLIENT_SEND_CMD {
-		packResponse := client.CmdHandler(packRequest)
-		data, _ := packResponse.Marshal()
-
-		//logger.Debug("to client", string(packResponse))
-		client.SpeedMonitor.Add(int64(len(data)), -1)
-
-		w.Write(data)
-		
-	}else if packRequest.Type == schema.CLIENT_REQUEST_CMD {
-		select {
-		case packResponse := <- client.CmdToClientChann:
-			if data, err := packResponse.Marshal(); err == nil {
-
-				//logger.Debug("to client", string(packResponse))
-				client.SpeedMonitor.Add(int64(len(data)), -1)
-
-				w.Write(data)
-			}
-		}
-	}
+	return nil
 }

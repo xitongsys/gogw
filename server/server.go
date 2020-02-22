@@ -2,168 +2,155 @@ package server
 
 import (
 	"fmt"
-	"io/ioutil"
-	"net"
 	"net/http"
 	"sync"
 	"time"
 
 	"gogw/common"
-	"gogw/common/schema"
 	"gogw/logger"
+	"gogw/schema"
 )
 
 type Server struct {
 	ServerAddr    string
-	TimeoutSecond time.Duration
+	Clients *sync.Map
 
-	Lock    sync.Mutex
-	Clients map[schema.ClientId]IClient
+	TimeoutSecond time.Duration
 }
 
 func NewServer(serverAddr string, timeoutSecond int) *Server {
 	return &Server{
 		ServerAddr:    serverAddr,
-		Clients:       make(map[schema.ClientId]IClient),
-		TimeoutSecond: time.Duration(timeoutSecond) * time.Second,
+		Clients:       &sync.Map{},
+		TimeoutSecond: time.Second * time.Duration(timeoutSecond),
 	}
 }
 
-func (server *Server) cleaner() {
-	server.Lock.Lock()
-	defer server.Lock.Unlock()
+//client register
+func (s *Server) registerHandler(w http.ResponseWriter, req *http.Request) {
+	defer func(){
+		req.Body.Close()
+	}()
 
-	t := time.Now()
-	shouldDelete := []schema.ClientId{}
-	for clientId, client := range server.Clients {
-		if t.Sub(client.GetLastHeartbeat()).Milliseconds() > server.TimeoutSecond.Milliseconds() {
-			shouldDelete = append(shouldDelete, clientId)
-			client.Stop()
-		}
-	}
-
-	for _, clientId := range shouldDelete {
-		delete(server.Clients, clientId)
-	}
-}
-
-func (server *Server) checkPort(port int, protocol string) error {
-	if protocol == "tcp" {
-		l, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%v", port))
-		if err != nil {
-			return err
-		}
-		l.Close()
-		return nil
-	}else if protocol == "udp" {
-		l, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("0.0.0.0"), Port: port})
-		if err != nil {
-			return err
-		}
-		l.Close()
-		return nil
-	}
-
-	return fmt.Errorf("unsupport protocol: %v", protocol)
-}
-
-func (server *Server) registerHandler(w http.ResponseWriter, req *http.Request) {
-	bs, err := ioutil.ReadAll(req.Body)
+	msgPack, err := schema.ReadMsg(req.Body)
 	if err != nil {
 		logger.Error(err)
 		return
 	}
 
-	registerRequest := &schema.RegisterRequest{}
-	if err = registerRequest.Unmarshal(bs); err != nil {
-		logger.Error(err)
+	msg, ok := msgPack.Msg.(*schema.RegisterRequest)
+	if ! ok {
 		return
 	}
 
-	if registerRequest.Direction == schema.DIRECTION_REVERSE {
-		if registerRequest.ToPort <= 0 {
-			for registerRequest.ToPort = 1000; registerRequest.ToPort < 65535; registerRequest.ToPort++ {
-				if server.checkPort(registerRequest.ToPort, registerRequest.Protocol) == nil {
-					break
-				}
-			}
-		}
+	clientId := common.UUID("clientid")
 
-		if err = server.checkPort(registerRequest.ToPort, registerRequest.Protocol); err != nil {
-			logger.Error(err)
-			return
-		}
-	}
+	client := NewClient(
+		clientId,
+		req.RemoteAddr,
+		msg.ToPort,
+		msg.Direction,
+		msg.Protocol,
+		msg.SourceAddr,
+		msg.Description,
+	)
 
-	clientId := schema.ClientId(common.UUID("clientid"))
-
-	registerResponse := &schema.RegisterResponse{
-		ClientId: clientId,
-		ToPort:   registerRequest.ToPort,
-		Code:     schema.SUCCESS,
-	}
-
-	var client IClient
-	if registerRequest.Protocol == "tcp" && registerRequest.Direction == schema.DIRECTION_REVERSE {
-		client = NewClientTCPReverse(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Description)
-
-	}else if registerRequest.Protocol == "udp" && registerRequest.Direction == schema.DIRECTION_REVERSE{
-		client = NewClientUDPReverse(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Description)
-	
-	}else if registerRequest.Direction == schema.DIRECTION_FORWARD {
-		client = NewClientForward(clientId, req.RemoteAddr, registerRequest.ToPort, registerRequest.SourceAddr, registerRequest.Protocol, registerRequest.Description)
-	}else {
-		logger.Error("Register failed", registerRequest)
-		return
-	}
-
-	server.Lock.Lock()
-	defer server.Lock.Unlock()
-	server.Clients[clientId] = client
-
-	if err = client.Start(); err == nil {
-		var data []byte
-		if data, err = registerResponse.Marshal(); err == nil {
-			_, err = w.Write(data)
-		}
-	}
-
-	if err != nil {
-		delete(server.Clients, clientId)
-		registerResponse.Code = schema.FAILED
-		data, _ := registerResponse.Marshal()
-		w.Write(data)
-
-		logger.Error(err)
-	}
-
-}
-
-func (server *Server) packHandler(w http.ResponseWriter, req *http.Request) {
-	if cs, ok := req.URL.Query()["clientid"]; ok && len(cs[0]) > 0 {
-		clientId := schema.ClientId(cs[0])
-		if client, ok := server.Clients[clientId]; ok && client != nil {
-			client.RequestHandler(w, req)
-		}
-	}
-}
-
-func (server *Server) Start() {
-	logger.Info(fmt.Sprintf("\nserver start\nAddr: %v\nTimeoutSecond: %v\n", server.ServerAddr, int(server.TimeoutSecond.Seconds())))
-
-	http.HandleFunc("/register", server.registerHandler)
-	http.HandleFunc("/pack", server.packHandler)
-	http.HandleFunc("/heartbeat", server.heartbeatHandler)
-	http.HandleFunc("/monitor", server.monitorHandler)
-	http.Handle("/ui/", http.StripPrefix("/ui/", http.FileServer(http.Dir("./ui"))))
-
-	//cleaner
-	go func() {
-		for {
-			server.cleaner()
-			time.Sleep(time.Second * 30)
+	s.Clients.Store(clientId, client)
+	defer func(){
+		if err != nil {
+			s.Clients.Delete(clientId)
 		}
 	}()
 
-	http.ListenAndServe(server.ServerAddr, nil)
+	if err = client.Start(); err != nil {
+		return
+	}
+
+	msgPack = & schema.MsgPack {
+		MsgType: schema.MSG_TYPE_REGISTER_RESPONSE,
+		Msg: & schema.RegisterResponse {
+			ClientId: clientId,
+			Status: schema.STATUS_SUCCESS,
+		},
+	}
+
+	err = schema.WriteMsg(w, msgPack)
+}
+
+//msg to client 
+func (s *Server) msgHandler(w http.ResponseWriter, req *http.Request) {
+	defer func(){
+		req.Body.Close()
+	}()
+
+	if its, ok := req.URL.Query()["clientid"]; ok && len(its[0]) > 0 {
+		clientId := its[0]
+		if ci, ok := s.Clients.Load(clientId); ok {
+			client, _ := ci.(*Client)
+			client.HttpHandler(w, req)
+		}
+	}
+}
+
+func (s *Server) cleanerLoop() {
+	for {
+		t := time.Now()
+		shouldDelete := []string{}
+		s.Clients.Range(func (k, v interface{}) bool {
+			client, _ := v.(*Client)
+			if t.Sub(client.LastHeartbeatTime).Milliseconds() > s.TimeoutSecond.Milliseconds() {
+				shouldDelete = append(shouldDelete, client.ClientId)
+				client.Stop()
+			}
+			return true
+		})
+
+		for _, clientId := range shouldDelete {
+			s.Clients.Delete(clientId)
+		}
+
+		time.Sleep(time.Second * 10)
+	}
+}
+
+func (s *Server) getAllInfo() *schema.AllInfo {
+	allInfo := &schema.AllInfo {
+		ServerAddr: s.ServerAddr,
+		Clients: []*schema.ClientInfo{},
+	}
+
+	s.Clients.Range(func (k,v interface{}) bool {
+		client := v.(*Client)
+		cinfo := & schema.ClientInfo {
+			ClientId: client.ClientId,
+			ClientAddr: client.ClientAddr,
+			Port: client.ToPort,
+			Protocol: client.Protocol,
+			SourceAddr: client.SourceAddr,
+			Direction: client.Direction,
+			Description: client.Description,
+			ConnectionNumber: common.Max(client.ConnNumber/2, 0),
+			UploadSpeed: client.SpeedMonitor.GetUploadSpeed(),
+			DownloadSpeed: client.SpeedMonitor.GetDownloadSpeed(),
+		}
+
+		allInfo.Clients = append(allInfo.Clients, cinfo)
+		return true
+	})
+	
+	return allInfo
+}
+
+func (s *Server) Start() {
+	logger.Info(fmt.Sprintf("\nserver start\nAddr: %v\n", s.ServerAddr))
+
+	//start client cleaner
+	go s.cleanerLoop()
+
+	http.HandleFunc("/register", s.registerHandler)
+	http.HandleFunc("/msg", s.msgHandler)
+	http.HandleFunc("/heartbeat", s.heartbeatHandler)
+	http.HandleFunc("/monitor", s.monitorHandler)
+	http.Handle("/ui/", http.StripPrefix("/ui/", http.FileServer(http.Dir("./ui"))))
+	http.ListenAndServe(s.ServerAddr, nil)
 }

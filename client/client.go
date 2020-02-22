@@ -3,189 +3,88 @@ package client
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"net"
 	"net/http"
+	"sync"
 	"time"
 
-	"gogw/common/schema"
+	"gogw/common"
 	"gogw/logger"
+	"gogw/schema"
 )
 
 const (
-	PACKSIZE   = 1024 * 1024
-	BUFFERSIZE = 100
+	PACKSIZE = 1024 * 1024
 )
 
 type Client struct {
 	ServerAddr string
-
 	SourceAddr  string
 	ToPort int
 	Direction string
-
 	Protocol string
-
 	Description string
-	TimeoutSecond time.Duration
+	ClientId string
 
-	LastHeartbeat time.Time
-	ClientId schema.ClientId
-
-	CmdHandler func (pack *schema.PackResponse)
+	Conns *sync.Map
+	UDPAddrToConnId map[string]string
 }
 
+func NewClient(
+	serverAddr string,
+	sourceAddr string,
+	toPort int,
+	direction string,
+	protocol string,
+	description string,
+) *Client {
+	return &Client {
+		ServerAddr: serverAddr,
+		SourceAddr: sourceAddr,
+		ToPort: toPort,
+		Direction: direction,
+		Protocol: protocol,
+		Description: description,
+		ClientId: "",
+		Conns: &sync.Map{},
+		UDPAddrToConnId: make(map[string]string),
+	}
+}
 
-func (client *Client) Start() {
-	logger.Info(fmt.Sprintf("\nclient start\nServer: %v\nSourceAddr: %v\nToPort: %v\nDirection: %v\nProtocol: %v\nDescription: %v\nTimeoutSecond: %v\n", 
-	client.ServerAddr, client.SourceAddr, client.ToPort, client.Direction, client.Protocol, client.Description, int(client.TimeoutSecond.Seconds())))
+func (c *Client) Start() {
+	logger.Info(fmt.Sprintf("\nclient start\nServer: %v\nSourceAddr: %v\nToPort: %v\nDirection: %v\nProtocol: %v\nDescription: %v\n", 
+	c.ServerAddr, c.SourceAddr, c.ToPort, c.Direction, c.Protocol, c.Description))
 
 	//start heartbeat
-	go client.heartbeat()
-
-	//recv cmd from server
-	go client.recvCmdFromServer()
+	go c.heartbeatLoop()
 
 	for {
-		if err := client.register(); err != nil {
+		if err := c.register(); err != nil {
 			logger.Error(err)
 			time.Sleep(2 * time.Second)
 			continue
 		}
 
-		for {
-			t := time.Now()
-			if t.Sub(client.LastHeartbeat).Milliseconds() > client.TimeoutSecond.Milliseconds() {
-				logger.Error("timeout")
-				break
+		if c.Direction == schema.DIRECTION_FORWARD {
+			if c.Protocol == schema.PROTOCOL_TCP {
+				c.startForwardTCPListener()
 			}
-			time.Sleep(2 * time.Second)
-		}
-	}
-}
 
-func (client *Client) register() error {
-	client.ClientId = schema.ClientId("")
-
-	url := fmt.Sprintf("http://%s/register", client.ServerAddr)
-	registerRequest := & schema.RegisterRequest {
-		SourceAddr: client.SourceAddr,
-		ToPort: client.ToPort,
-		Direction: client.Direction,
-		Protocol: client.Protocol,
-		Description: client.Description,
-	}
-
-	data, err := registerRequest.Marshal()
-	if err != nil {
-		return err
-	}
-
-	data, err = client.query(url, data)
-	if err != nil {
-		return err
-	}
-
-	registerResponse := &schema.RegisterResponse{}
-	if err := registerResponse.Unmarshal(data); err != nil || registerResponse.Code == schema.FAILED {
-		return fmt.Errorf("Register failed")
-	}
-
-	client.ClientId = registerResponse.ClientId
-	client.LastHeartbeat = time.Now()
-	client.ToPort = registerResponse.ToPort
-	return nil
-}
-
-func (client *Client) sendCmdToServer(connId schema.ConnectionId, cmd string) (*schema.PackResponse, error) {
-	packRequest := &schema.PackRequest{
-		ClientId: client.ClientId,
-		ConnId:   connId,
-		Type:     schema.CLIENT_SEND_CMD,
-		Content:  cmd,
-	}
-
-	var data []byte
-	var err error
-	if data, err = packRequest.Marshal(); err != nil {
-		logger.Error(err)
-		return nil, err
-	}
-
-	url := fmt.Sprintf("http://%s/pack?clientid=%s", client.ServerAddr, client.ClientId)
-	if data, err = client.query(url, data); err != nil {
-		return nil, err
-	}
-
-	packResponse := &schema.PackResponse{}
-	err = packResponse.Unmarshal(data)	
-	return packResponse, err
-}
-
-func (client *Client) sendToServer(packRequest *schema.PackRequest) (err error) {
-	url := fmt.Sprintf("http://%s/pack?clientid=%s", client.ServerAddr, client.ClientId)
-	var data []byte
-	if data, err = packRequest.Marshal(); err == nil {
-		_, err = client.query(url, data)
-	}
-
-	return err
-}
-
-func (client *Client) recvFromServer(connId schema.ConnectionId) (*schema.PackResponse, error) {
-	url := fmt.Sprintf("http://%s/pack?clientid=%s", client.ServerAddr, client.ClientId)
-	packRequest := &schema.PackRequest{
-		ClientId: client.ClientId,
-		ConnId:   connId,
-		Type:     schema.CLIENT_REQUEST_PACK,
-	}
-	var data []byte
-	var err error
-	if data, err = packRequest.Marshal(); err == nil {
-		data, err = client.query(url, data)
-		if err == nil {
-			packResponse := &schema.PackResponse{}
-			if err = packResponse.Unmarshal(data); err == nil {
-				return packResponse, nil
+			if c.Protocol == schema.PROTOCOL_UDP {
+				c.startForwardUDPListener()
 			}
 		}
-	}
 
-	return nil, err
+		c.msgRequestLoop()
+	}
 }
 
-//recv open conn cmd
-func (client *Client) recvCmdFromServer() error {
+func (c *Client) heartbeatLoop() {
 	for {
-		if client.ClientId != "" {
-			url := fmt.Sprintf("http://%s/pack?clientid=%s", client.ServerAddr, client.ClientId)
-			packRequest := &schema.PackRequest{
-				ClientId: client.ClientId,
-				Type:     schema.CLIENT_REQUEST_CMD,
-			}
-
-			if data, err := packRequest.Marshal(); err == nil {
-				if data, err = client.query(url, data); err == nil {
-					packResponse := &schema.PackResponse{}
-					if err = packResponse.Unmarshal(data); err == nil {
-						client.CmdHandler(packResponse)
-					}
-				}
-			}
-
-		}else{
-			time.Sleep(time.Second)
-		}
-	}
-}
-
-func (client *Client) heartbeat() {
-	for {
-		if client.ClientId != "" {
-			url := fmt.Sprintf("http://%s/heartbeat?clientid=%s", client.ServerAddr, client.ClientId)
-			data, err := client.query(url, nil)
-			if string(data) == "ok" {
-				client.LastHeartbeat = time.Now()
-			}
+		if c.ClientId != "" {
+			url := fmt.Sprintf("http://%s/heartbeat?clientid=%s", c.ServerAddr, c.ClientId)
+			_, err := http.Get(url)
 			if err != nil {
 				logger.Error(err)
 			}
@@ -194,12 +93,235 @@ func (client *Client) heartbeat() {
 	}
 }
 
-func (client *Client) query(url string, body []byte) ([]byte, error) {
-	rep, err := http.Post(url, "application/json", bytes.NewBuffer(body))
-	if err != nil {
-		return nil, err
+func (c *Client) register() error {
+	logger.Info("start register")
+	url := fmt.Sprintf("http://%v/register", c.ServerAddr)
+	msgPack := &schema.MsgPack{
+		MsgType: schema.MSG_TYPE_REGISTER_REQUEST,
+		Msg: & schema.RegisterRequest {
+			SourceAddr: c.SourceAddr,
+			ToPort: c.ToPort,
+			Direction: c.Direction,
+			Protocol: c.Protocol,
+			Description: c.Description,
+		},
 	}
 
-	defer rep.Body.Close()
-	return ioutil.ReadAll(rep.Body)
+	r, w := io.Pipe()
+	go func(){
+		schema.WriteMsg(w, msgPack)
+		w.Close()
+	}()
+
+	response, err := http.Post(url, "", r)
+	if err != nil {
+		return err
+	}
+
+	msgPack, err = schema.ReadMsg(response.Body)
+	if err != nil {
+		logger.Error(err)
+		return err
+	}
+
+	msg, _ := msgPack.Msg.(*schema.RegisterResponse)
+	if msg.Status == schema.STATUS_SUCCESS {
+		c.ClientId = msg.ClientId
+	}else{
+		err = fmt.Errorf("register failed")
+	}
+
+	return err
+}
+
+func (c *Client) msgRequestLoop(){
+	url := fmt.Sprintf("http://%v/msg?clientid=%v", c.ServerAddr, c.ClientId)
+	msgPack := &schema.MsgPack{
+		MsgType: schema.MSG_TYPE_MSG_COMMON_REQUEST,
+	}
+
+	var buf bytes.Buffer
+	schema.WriteMsg(&buf, msgPack)
+	data := buf.Bytes()
+
+	for {
+		response, err := http.Post(url, "", bytes.NewReader(data))
+		if err != nil {
+			logger.Error(err)
+			return
+		}
+
+		msgPackResponse, err := schema.ReadMsg(response.Body)
+		if msgPackResponse.MsgType == schema.MSG_TYPE_OPEN_CONN_RESPONSE {
+			msg := msgPackResponse.Msg.(*schema.OpenConnResponse)
+			//only reverse connection need this
+			if c.Direction == schema.DIRECTION_REVERSE {
+				c.openReverseConn(msg.ConnId)
+			}
+		}
+	}
+}
+
+func (c *Client) openConn(connId string, conn net.Conn) error {
+	url := fmt.Sprintf("http://%v/msg?clientid=%v", c.ServerAddr, c.ClientId)
+	c.Conns.Store(connId, &common.Conn{
+		ConnId: connId,
+		Conn: conn,
+	})
+
+	//conn -> server
+	go func(){
+		readerMsgPack := &schema.MsgPack{
+			MsgType: schema.MSG_TYPE_OPEN_CONN_REQUEST,
+			Msg: &schema.OpenConnRequest {
+				ConnId: connId,
+				Role: schema.ROLE_READER,
+			},
+		}
+
+		r, w := io.Pipe()
+		go func(){
+			schema.WriteMsg(w, readerMsgPack)
+			io.Copy(w, conn)
+		}()
+
+		http.Post(url, "", r)
+
+		logger.Debug("conn->server done")
+	}()
+
+	//server -> conn
+	go func(){
+		writerMsgPack := &schema.MsgPack{
+			MsgType: schema.MSG_TYPE_OPEN_CONN_REQUEST,
+			Msg: &schema.OpenConnRequest {
+				ConnId: connId,
+				Role: schema.ROLE_WRITER,
+			},
+		}
+
+		r, w := io.Pipe()
+		go func(){
+			schema.WriteMsg(w, writerMsgPack)
+			w.Close()
+		}()
+
+		response , err := http.Post(url, "", r)
+		if err != nil {
+			return
+		}
+
+		io.Copy(conn, response.Body)
+		logger.Debug("server -> conn done")
+	}()
+
+	return nil
+}
+
+func (c *Client) openReverseConn(connId string) error {
+	var conn net.Conn
+	var err error
+	conn, err = net.Dial(c.Protocol, c.SourceAddr)
+	if err != nil {
+		return err
+	}
+
+	c.openConn(connId, conn)
+	return nil
+}
+
+func (c *Client) startForwardTCPListener() error {
+	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", c.ToPort))
+	if err != nil {
+		return err
+	}
+	
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				logger.Error(err)
+				return
+			}
+
+			if connId, err := c.queryConnId(); err == nil {
+				c.openConn(connId, conn)
+			}
+		}
+	}()
+
+	return nil
+}
+
+
+func (c *Client) startForwardUDPListener() error {
+	listener, err := net.ListenUDP(c.Protocol, &net.UDPAddr{IP: net.ParseIP("0.0.0.0"), Port: c.ToPort})
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		bs := make([]byte, PACKSIZE)
+		for {
+			n, remoteAddr, err := listener.ReadFromUDP(bs)
+			if err != nil {
+				logger.Error(err)
+				return
+			}
+
+			addr := remoteAddr.String()
+			if connId, ok := c.UDPAddrToConnId[addr]; !ok {
+				if connId, err = c.queryConnId(); err == nil {
+					c.UDPAddrToConnId[addr] = connId
+					conn := common.NewUDPConn(remoteAddr, listener)
+					c.openConn(connId, conn)
+				}
+			}
+
+			if value, ok := c.Conns.Load(c.UDPAddrToConnId[addr]); ok {
+				conn := value.(*common.Conn)
+				udpConn, _ := conn.Conn.(*common.UDPConn)
+				udpConn.PipeWriter.Write(bs[:n])
+			}
+		}
+	}()
+
+	return nil
+}
+
+func (c *Client) queryConnId() (string, error){
+	url := fmt.Sprintf("http://%v/msg?clientid=%v", c.ServerAddr, c.ClientId)
+	msgPack := & schema.MsgPack {
+		MsgType: schema.MSG_TYPE_OPEN_CONN_REQUEST,
+		Msg: & schema.OpenConnRequest{
+			Role: schema.ROLE_QUERY_CONNID,
+		},
+	}
+
+	r, w := io.Pipe()
+	go func(){
+		schema.WriteMsg(w, msgPack)
+		w.Close()
+	}()
+
+	response, err := http.Post(url, "", r)
+	if err != nil {
+		logger.Error(err)
+		return "", err
+	}
+
+	msgPack, err = schema.ReadMsg(response.Body)
+	if err != nil || msgPack.MsgType != schema.MSG_TYPE_OPEN_CONN_RESPONSE{
+		logger.Error(err)
+		return "", err
+	}
+
+	msg, ok := msgPack.Msg.(*schema.OpenConnResponse)
+	if !ok || msg.Status != schema.STATUS_SUCCESS {
+		err = fmt.Errorf("query id error")
+		logger.Error(err)
+		return "", err
+	}
+
+	return msg.ConnId, nil
 }
