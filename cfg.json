@@ -8,6 +8,7 @@
 		"Description":"webservice"
 	},
 	"Server":{
-		"ServerAddr":"0.0.0.0:80"
+		"ServerAddr":"0.0.0.0:80",
+		"TimeoutSecond": 30
 	}
 }
