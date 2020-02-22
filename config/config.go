@@ -20,7 +20,7 @@ type ServerConfig struct {
 }
 
 type Config struct {
-	Client ClientConfig
+	Clients []ClientConfig
 	Server ServerConfig
 }
 

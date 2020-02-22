@@ -1,12 +1,12 @@
 {
-	"Client":{
+	"Clients":[{
 		"ServerAddr":"127.0.0.1:80",
 		"SourceAddr":"127.0.0.1:8080",
 		"ToPort":81,
 		"Protocol": "tcp",
 		"Direction": "reverse",
 		"Description":"webservice"
-	},
+	}],
 	"Server":{
 		"ServerAddr":"0.0.0.0:80",
 		"TimeoutSecond": 30

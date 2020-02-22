@@ -2,6 +2,7 @@ package main
 
 import ( 
 	"flag"
+	"sync"
 
 	"gogw/logger"
 	"gogw/config"
@@ -35,14 +36,25 @@ func main(){
 	}
 
 	if *role == "client" {
-		client := client.NewClient(
-			cfg.Client.ServerAddr, 
-			cfg.Client.SourceAddr, 
-			cfg.Client.ToPort, 
-			cfg.Client.Direction, 
-			cfg.Client.Protocol, 
-			cfg.Client.Description,
-		)
-		client.Start()
+		var wg sync.WaitGroup
+
+		for _, cfg := range cfg.Clients {
+			c := client.NewClient(
+				cfg.ServerAddr, 
+				cfg.SourceAddr, 
+				cfg.ToPort, 
+				cfg.Direction, 
+				cfg.Protocol, 
+				cfg.Description,
+			)
+
+			go func(){
+				wg.Add(1)
+				defer wg.Done()
+				c.Start()
+			}()
+		}
+
+		wg.Wait()
 	}
 }
