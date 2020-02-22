@@ -21,6 +21,7 @@ type Client struct {
 	Description string
 
 	Conns    *sync.Map
+	ConnNumber int
 	MsgChann chan *schema.MsgPack
 
 	TCPListener net.Listener
@@ -51,6 +52,7 @@ func NewClient(
 		Description: description,
 
 		Conns:    &sync.Map{},
+		ConnNumber: 0,
 		MsgChann: make(chan *schema.MsgPack),
 
 		UDPAddrToConnId: make(map[string]string),
@@ -92,6 +94,7 @@ func (c *Client) Stop() {
 }
 
 func (c *Client) addConn(connId string, conn net.Conn) {
+	c.ConnNumber++
 	c.Conns.Store(connId,
 		&common.Conn{
 			ConnId: connId,
@@ -100,6 +103,7 @@ func (c *Client) addConn(connId string, conn net.Conn) {
 }
 
 func (c *Client) deleteConn(connId string) {
+	c.ConnNumber--
 	c.Conns.Delete(connId)
 	if c.UDPAddrToConnId != nil {
 		delete(c.UDPAddrToConnId, connId)
