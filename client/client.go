@@ -14,6 +14,10 @@ import (
 	"gogw/schema"
 )
 
+const (
+	PACKSIZE = 1024 * 1024
+)
+
 type Client struct {
 	ServerAddr string
 	SourceAddr  string
@@ -24,6 +28,7 @@ type Client struct {
 	ClientId string
 
 	Conns *sync.Map
+	UDPAddrToConnId map[string]string
 }
 
 func NewClient(
@@ -43,6 +48,7 @@ func NewClient(
 		Description: description,
 		ClientId: "",
 		Conns: &sync.Map{},
+		UDPAddrToConnId: make(map[string]string),
 	}
 }
 
@@ -63,6 +69,10 @@ func (c *Client) Start() {
 		if c.Direction == schema.DIRECTION_FORWARD {
 			if c.Protocol == schema.PROTOCOL_TCP {
 				c.startForwardTCPListener()
+			}
+
+			if c.Protocol == schema.PROTOCOL_UDP {
+				c.startForwardUDPListener()
 			}
 		}
 
@@ -221,7 +231,6 @@ func (c *Client) openReverseConn(connId string) error {
 }
 
 func (c *Client) startForwardTCPListener() error {
-	url := fmt.Sprintf("http://%v/msg?clientid=%v", c.ServerAddr, c.ClientId)
 	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", c.ToPort))
 	if err != nil {
 		return err
@@ -235,42 +244,84 @@ func (c *Client) startForwardTCPListener() error {
 				return
 			}
 
-			msgPack := & schema.MsgPack {
-				MsgType: schema.MSG_TYPE_OPEN_CONN_REQUEST,
-				Msg: & schema.OpenConnRequest{
-					Role: schema.ROLE_QUERY_CONNID,
-				},
+			if connId, err := c.queryConnId(); err == nil {
+				c.openConn(connId, conn)
 			}
-
-			r, w := io.Pipe()
-			go func(){
-				schema.WriteMsg(w, msgPack)
-				w.Close()
-			}()
-
-			response, err := http.Post(url, "", r)
-			if err != nil {
-				logger.Error(err)
-				continue
-			}
-
-			msgPack, err = schema.ReadMsg(response.Body)
-			if err != nil || msgPack.MsgType != schema.MSG_TYPE_OPEN_CONN_RESPONSE{
-				logger.Error(err)
-				continue
-			}
-
-			msg, ok := msgPack.Msg.(*schema.OpenConnResponse)
-			if !ok || msg.Status != schema.STATUS_SUCCESS {
-				logger.Error("msg error")
-				continue
-			}
-
-			connId := msg.ConnId
-			c.openConn(connId, conn)
 		}
 	}()
 
 	return nil
 }
 
+
+func (c *Client) startForwardUDPListener() error {
+	listener, err := net.ListenUDP(c.Protocol, &net.UDPAddr{IP: net.ParseIP("0.0.0.0"), Port: c.ToPort})
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		bs := make([]byte, PACKSIZE)
+		for {
+			n, remoteAddr, err := listener.ReadFromUDP(bs)
+			if err != nil {
+				logger.Error(err)
+				return
+			}
+
+			addr := remoteAddr.String()
+			if connId, ok := c.UDPAddrToConnId[addr]; !ok {
+				if connId, err = c.queryConnId(); err == nil {
+					c.UDPAddrToConnId[addr] = connId
+					conn := common.NewUDPConn(remoteAddr, listener)
+					c.openConn(connId, conn)
+				}
+			}
+
+			if value, ok := c.Conns.Load(c.UDPAddrToConnId[addr]); ok {
+				conn := value.(*common.Conn)
+				udpConn, _ := conn.Conn.(*common.UDPConn)
+				udpConn.PipeWriter.Write(bs[:n])
+			}
+		}
+	}()
+
+	return nil
+}
+
+func (c *Client) queryConnId() (string, error){
+	url := fmt.Sprintf("http://%v/msg?clientid=%v", c.ServerAddr, c.ClientId)
+	msgPack := & schema.MsgPack {
+		MsgType: schema.MSG_TYPE_OPEN_CONN_REQUEST,
+		Msg: & schema.OpenConnRequest{
+			Role: schema.ROLE_QUERY_CONNID,
+		},
+	}
+
+	r, w := io.Pipe()
+	go func(){
+		schema.WriteMsg(w, msgPack)
+		w.Close()
+	}()
+
+	response, err := http.Post(url, "", r)
+	if err != nil {
+		logger.Error(err)
+		return "", err
+	}
+
+	msgPack, err = schema.ReadMsg(response.Body)
+	if err != nil || msgPack.MsgType != schema.MSG_TYPE_OPEN_CONN_RESPONSE{
+		logger.Error(err)
+		return "", err
+	}
+
+	msg, ok := msgPack.Msg.(*schema.OpenConnResponse)
+	if !ok || msg.Status != schema.STATUS_SUCCESS {
+		err = fmt.Errorf("query id error")
+		logger.Error(err)
+		return "", err
+	}
+
+	return msg.ConnId, nil
+}
