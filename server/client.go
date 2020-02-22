@@ -82,11 +82,11 @@ func (c *Client) Stop() {
 		return true
 	})
 
-	if c.Protocol == schema.PROTOCOL_TCP {
+	if c.TCPListener != nil {
 		c.TCPListener.Close()
 	}
 
-	if c.Protocol == schema.PROTOCOL_UDP {
+	if c.UDPListener != nil {
 		c.UDPListener.Close()
 	}
 }
