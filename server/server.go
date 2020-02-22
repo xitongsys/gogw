@@ -129,7 +129,7 @@ func (s *Server) getAllInfo() *schema.AllInfo {
 			SourceAddr: client.SourceAddr,
 			Direction: client.Direction,
 			Description: client.Description,
-			ConnectionNumber: common.Max(client.ConnNumber/2, 0),
+			ConnectionNumber: common.Max(client.ConnNumber, 0),
 			UploadSpeed: client.SpeedMonitor.GetUploadSpeed(),
 			DownloadSpeed: client.SpeedMonitor.GetDownloadSpeed(),
 		}

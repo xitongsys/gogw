@@ -94,7 +94,11 @@ func (c *Client) Stop() {
 }
 
 func (c *Client) addConn(connId string, conn net.Conn) {
-	c.ConnNumber++
+	//just approximate 
+	if _, ok := c.Conns.Load(connId); !ok {
+		c.ConnNumber++
+	}
+
 	c.Conns.Store(connId,
 		&common.Conn{
 			ConnId: connId,
@@ -103,7 +107,11 @@ func (c *Client) addConn(connId string, conn net.Conn) {
 }
 
 func (c *Client) deleteConn(connId string) {
-	c.ConnNumber--
+	//just approximate
+	if _, ok := c.Conns.Load(connId); ok {
+		c.ConnNumber--
+	}
+
 	c.Conns.Delete(connId)
 	if c.UDPAddrToConnId != nil {
 		delete(c.UDPAddrToConnId, connId)
