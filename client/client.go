@@ -61,7 +61,9 @@ func (c *Client) Start() {
 		}
 
 		if c.Direction == schema.DIRECTION_FORWARD {
-			c.startForwardListener()
+			if c.Protocol == schema.PROTOCOL_TCP {
+				c.startForwardTCPListener()
+			}
 		}
 
 		c.msgRequestLoop()
@@ -218,7 +220,7 @@ func (c *Client) openReverseConn(connId string) error {
 	return nil
 }
 
-func (c *Client) startForwardListener() error {
+func (c *Client) startForwardTCPListener() error {
 	url := fmt.Sprintf("http://%v/msg?clientid=%v", c.ServerAddr, c.ClientId)
 	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", c.ToPort))
 	if err != nil {

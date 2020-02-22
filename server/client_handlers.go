@@ -10,10 +10,6 @@ import (
 	"gogw/schema"
 )
 
-const (
-	BUFSIZE = 1024 * 1024
-)
-
 func (c *Client) HttpHandler(w http.ResponseWriter, req *http.Request) {
 	msgPack, err := schema.ReadMsg(req.Body)
 	if err != nil {
@@ -64,6 +60,7 @@ func (c *Client) openConnHandler(msg *schema.OpenConnRequest, w http.ResponseWri
 			_, err := io.Copy(conn.Conn, req.Body)
 
 			logger.Error(err)
+			c.deleteConn(msg.ConnId)
 		}	
 
 	}else if msg.Role == schema.ROLE_WRITER {
@@ -76,7 +73,7 @@ func (c *Client) openConnHandler(msg *schema.OpenConnRequest, w http.ResponseWri
 			w.Header().Set("Cache-Control", "no-cache")
 			w.Header().Set("Connection", "keep-alive")
 
-			data := make([]byte, BUFSIZE)
+			data := make([]byte, PACKSIZE)
 			var err error 
 			var n int 
 			for {
@@ -90,6 +87,7 @@ func (c *Client) openConnHandler(msg *schema.OpenConnRequest, w http.ResponseWri
 			}
 			
 			logger.Error(err)
+			c.deleteConn(msg.ConnId)
 		}
 
 	}else {

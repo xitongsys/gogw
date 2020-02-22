@@ -1,4 +1,4 @@
-package server 
+package server
 
 import (
 	"fmt"
@@ -12,53 +12,60 @@ import (
 )
 
 type Client struct {
-	ClientId string
-	ClientAddr string
-	ToPort int
-	Direction string
-	Protocol string
-	SourceAddr string
+	ClientId    string
+	ClientAddr  string
+	ToPort      int
+	Direction   string
+	Protocol    string
+	SourceAddr  string
 	Description string
 
-	Conns *sync.Map
+	Conns    *sync.Map
 	MsgChann chan *schema.MsgPack
-	
+
+	TCPListener net.Listener
+	UDPListener *net.UDPConn
+
 	LastHeartbeatTime time.Time
-	SpeedMonitor *SpeedMonitor
+	SpeedMonitor      *SpeedMonitor
 }
 
 func NewClient(
-	clientId string, 
+	clientId string,
 	clientAddr string,
 	toPort int,
 	direction string,
 	protocol string,
 	sourceAddr string,
 	description string,
-	) *Client {
+) *Client {
 
-	return & Client {
-		ClientId: clientId,
-		ClientAddr: clientAddr,
-		ToPort: toPort,
-		Direction: direction,
-		Protocol: protocol,
-		SourceAddr: sourceAddr,
+	return &Client{
+		ClientId:    clientId,
+		ClientAddr:  clientAddr,
+		ToPort:      toPort,
+		Direction:   direction,
+		Protocol:    protocol,
+		SourceAddr:  sourceAddr,
 		Description: description,
 
-		Conns: &sync.Map{},
+		Conns:    &sync.Map{},
 		MsgChann: make(chan *schema.MsgPack),
 
 		LastHeartbeatTime: time.Now(),
-		SpeedMonitor: NewSpeedMonitor(),
+		SpeedMonitor:      NewSpeedMonitor(),
 	}
 }
 
 func (c *Client) Start() (err error) {
-	if c.Direction == schema.DIRECTION_REVERSE && 
-		c.Protocol == schema.PROTOCOL_TCP {
+	if c.Direction == schema.DIRECTION_REVERSE {
+		if c.Protocol == schema.PROTOCOL_TCP {
+			return c.startReverseTCPListener()
+		}
 
-		return c.startReverseTCPListener()
+		if c.Protocol == schema.PROTOCOL_UDP {
+			return c.startReverseUDPListener()
+		}
 	}
 
 	return nil
@@ -66,34 +73,42 @@ func (c *Client) Start() (err error) {
 
 func (c *Client) Stop() {
 	close(c.MsgChann)
-	c.Conns.Range(func (k,v interface{}) bool {
+	c.Conns.Range(func(k, v interface{}) bool {
 		conn, _ := v.(*common.Conn)
 		conn.Conn.Close()
 		return true
 	})
+
+	if c.Protocol == schema.PROTOCOL_TCP {
+		c.TCPListener.Close()
+	}
+
+	if c.Protocol == schema.PROTOCOL_UDP {
+		c.UDPListener.Close()
+	}
 }
 
 func (c *Client) addConn(connId string, conn net.Conn) {
-	c.Conns.Store(connId, 
+	c.Conns.Store(connId,
 		&common.Conn{
-		ConnId: connId,
-		Conn: conn,
-	})
+			ConnId: connId,
+			Conn:   conn,
+		})
 }
 
 func (c *Client) deleteConn(connId string) {
 	c.Conns.Delete(connId)
 }
 
-func (c *Client) startReverseTCPListener() error {
-	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", c.ToPort))
+func (c *Client) startReverseTCPListener() (err error) {
+	c.TCPListener, err = net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", c.ToPort))
 	if err != nil {
 		return err
 	}
-	
+
 	go func() {
 		for {
-			conn, err := listener.Accept()
+			conn, err := c.TCPListener.Accept()
 			if err != nil {
 				logger.Error(err)
 				return
@@ -102,9 +117,43 @@ func (c *Client) startReverseTCPListener() error {
 			connId := common.UUID("connid")
 			c.addConn(connId, conn)
 
-			msgPack := & schema.MsgPack {
+			msgPack := &schema.MsgPack{
 				MsgType: schema.MSG_TYPE_OPEN_CONN_RESPONSE,
-				Msg: & schema.OpenConnResponse{
+				Msg: &schema.OpenConnResponse{
+					ConnId: connId,
+					Status: schema.STATUS_SUCCESS,
+				},
+			}
+
+			c.MsgChann <- msgPack
+		}
+	}()
+
+	return nil
+}
+
+func (c *Client) startReverseUDPListener() (err error) {
+	c.UDPListener, err = net.ListenUDP(c.Protocol, &net.UDPAddr{IP: net.ParseIP("0.0.0.0"), Port: c.ToPort})
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		bs := make([]byte, PACKSIZE)
+		for {
+			_, remoteAddr, err := c.UDPListener.ReadFromUDP(bs)
+			if err != nil {
+				logger.Error(err)
+				return
+			}
+
+			connId := common.UUID("connid")
+			conn := common.NewUDPConn(remoteAddr, c.UDPListener)
+			c.addConn(connId, conn)
+
+			msgPack := &schema.MsgPack{
+				MsgType: schema.MSG_TYPE_OPEN_CONN_RESPONSE,
+				Msg: &schema.OpenConnResponse{
 					ConnId: connId,
 					Status: schema.STATUS_SUCCESS,
 				},
