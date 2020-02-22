@@ -113,6 +113,34 @@ func (s *Server) cleanerLoop() {
 	}
 }
 
+func (s *Server) getAllInfo() *schema.AllInfo {
+	allInfo := &schema.AllInfo {
+		ServerAddr: s.ServerAddr,
+		Clients: []*schema.ClientInfo{},
+	}
+
+	s.Clients.Range(func (k,v interface{}) bool {
+		client := v.(*Client)
+		cinfo := & schema.ClientInfo {
+			ClientId: client.ClientId,
+			ClientAddr: client.ClientAddr,
+			Port: client.ToPort,
+			Protocol: client.Protocol,
+			SourceAddr: client.SourceAddr,
+			Direction: client.Direction,
+			Description: client.Description,
+			ConnectionNumber: 0,
+			UploadSpeed: client.SpeedMonitor.GetUploadSpeed(),
+			DownloadSpeed: client.SpeedMonitor.GetDownloadSpeed(),
+		}
+
+		allInfo.Clients = append(allInfo.Clients, cinfo)
+		return true
+	})
+	
+	return allInfo
+}
+
 func (s *Server) Start() {
 	logger.Info(fmt.Sprintf("\nserver start\nAddr: %v\n", s.ServerAddr))
 
