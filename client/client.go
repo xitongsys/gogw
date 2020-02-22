@@ -144,7 +144,7 @@ func (c *Client) msgRequestLoop(){
 		msgPackResponse, err := schema.ReadMsg(response.Body)
 		if msgPackResponse.MsgType == schema.MSG_TYPE_OPEN_CONN_RESPONSE {
 			msg := msgPackResponse.Msg.(*schema.OpenConnResponse)
-			
+			//only reverse connection need this
 			if c.Direction == schema.DIRECTION_REVERSE {
 				c.openReverseConn(msg.ConnId)
 			}

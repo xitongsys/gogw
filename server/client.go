@@ -147,13 +147,14 @@ func (c *Client) startReverseUDPListener() (err error) {
 	go func() {
 		bs := make([]byte, PACKSIZE)
 		for {
-			_, remoteAddr, err := c.UDPListener.ReadFromUDP(bs)
+			n, remoteAddr, err := c.UDPListener.ReadFromUDP(bs)
 			if err != nil {
 				logger.Error(err)
 				return
 			}
 
-			if connId, ok := c.UDPAddrToConnId[remoteAddr.String()]; !ok {
+			addr := remoteAddr.String()
+			if connId, ok := c.UDPAddrToConnId[addr]; !ok {
 				connId = common.UUID("connid")
 				conn := common.NewUDPConn(remoteAddr, c.UDPListener)
 				c.addConn(connId, conn)
@@ -170,9 +171,12 @@ func (c *Client) startReverseUDPListener() (err error) {
 				c.MsgChann <- msgPack
 			}
 
-			if value, ok := c.Conns.Load(c.UDPAddrToConnId[remoteAddr.String()]); ok {
+			connId := c.UDPAddrToConnId[addr]
+			if value, ok := c.Conns.Load(connId); ok {
 				conn, _ := value.(*common.Conn)
-				conn.Conn.Write(bs)
+				if udpConn, ok := conn.Conn.(*common.UDPConn); ok {
+					udpConn.PipeWriter.Write(bs[:n])
+				}
 			}
 		}
 	}()
