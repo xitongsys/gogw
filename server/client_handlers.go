@@ -62,6 +62,7 @@ func (c *Client) openConnHandler(msg *schema.OpenConnRequest, w http.ResponseWri
 		if conni, ok := c.Conns.Load(msg.ConnId); ok {
 			conn, _ := conni.(*common.Conn)
 			_, err := io.Copy(conn.Conn, req.Body)
+
 			logger.Error(err)
 		}	
 
