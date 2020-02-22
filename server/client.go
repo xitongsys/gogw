@@ -169,6 +169,11 @@ func (c *Client) startReverseUDPListener() (err error) {
 
 				c.MsgChann <- msgPack
 			}
+
+			if value, ok := c.Conns.Load(c.UDPAddrToConnId[remoteAddr.String()]); ok {
+				conn, _ := value.(*common.Conn)
+				conn.Conn.Write(bs)
+			}
 		}
 	}()
 

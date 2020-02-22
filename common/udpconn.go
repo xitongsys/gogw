@@ -1,6 +1,7 @@
 package common
 
 import (
+	"io"
 	"net"
 	"time"
 )
@@ -9,17 +10,22 @@ import (
 type UDPConn struct {
 	remoteAddr net.Addr
 	conn *net.UDPConn	
+	pipeReader *io.PipeReader
+	PipeWriter *io.PipeWriter
 }
 
 func NewUDPConn(remoteAddr net.Addr, conn *net.UDPConn) (*UDPConn){
+	r, w := io.Pipe()
 	return & UDPConn {
 		remoteAddr: remoteAddr,
 		conn: conn,
+		pipeReader: r,
+		PipeWriter: w,
 	}
 }
 
 func (uc *UDPConn) Read(b []byte) (n int , err error) {
-	return uc.conn.Read(b)
+	return uc.pipeReader.Read(b)
 }
 
 func (uc *UDPConn) Write(b []byte) (n int , err error) {
