@@ -25,6 +25,7 @@ type Client struct {
 
 	TCPListener net.Listener
 	UDPListener *net.UDPConn
+	UDPAddrToConnId map[string]string
 
 	LastHeartbeatTime time.Time
 	SpeedMonitor      *SpeedMonitor
@@ -51,6 +52,8 @@ func NewClient(
 
 		Conns:    &sync.Map{},
 		MsgChann: make(chan *schema.MsgPack),
+
+		UDPAddrToConnId: make(map[string]string),
 
 		LastHeartbeatTime: time.Now(),
 		SpeedMonitor:      NewSpeedMonitor(),
@@ -98,6 +101,9 @@ func (c *Client) addConn(connId string, conn net.Conn) {
 
 func (c *Client) deleteConn(connId string) {
 	c.Conns.Delete(connId)
+	if c.UDPAddrToConnId != nil {
+		delete(c.UDPAddrToConnId, connId)
+	}
 }
 
 func (c *Client) startReverseTCPListener() (err error) {
@@ -147,19 +153,22 @@ func (c *Client) startReverseUDPListener() (err error) {
 				return
 			}
 
-			connId := common.UUID("connid")
-			conn := common.NewUDPConn(remoteAddr, c.UDPListener)
-			c.addConn(connId, conn)
+			if connId, ok := c.UDPAddrToConnId[remoteAddr.String()]; !ok {
+				connId = common.UUID("connid")
+				conn := common.NewUDPConn(remoteAddr, c.UDPListener)
+				c.addConn(connId, conn)
+				c.UDPAddrToConnId[remoteAddr.String()] = connId
 
-			msgPack := &schema.MsgPack{
-				MsgType: schema.MSG_TYPE_OPEN_CONN_RESPONSE,
-				Msg: &schema.OpenConnResponse{
-					ConnId: connId,
-					Status: schema.STATUS_SUCCESS,
-				},
+				msgPack := &schema.MsgPack{
+					MsgType: schema.MSG_TYPE_OPEN_CONN_RESPONSE,
+					Msg: &schema.OpenConnResponse{
+						ConnId: connId,
+						Status: schema.STATUS_SUCCESS,
+					},
+				}
+
+				c.MsgChann <- msgPack
 			}
-
-			c.MsgChann <- msgPack
 		}
 	}()
 
