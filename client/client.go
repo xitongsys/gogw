@@ -249,8 +249,8 @@ func (c *Client) startForwardTCPListener() error {
 				c.openConn(connId, conn)
 
 				logger.Info(fmt.Sprintf("New Connection\nClientId: %v\nSourceAddr: %v\nRemoteAddr: %v\n", 
-				c.ClientId, c.SourceAddr, conn.RemoteAddr))
-				
+				c.ClientId, c.SourceAddr, conn.RemoteAddr()))
+
 			}else{
 				logger.Error(err)
 			}
@@ -294,7 +294,7 @@ func (c *Client) startForwardUDPListener() error {
 			}
 
 			logger.Info(fmt.Sprintf("New Connection\nClientId: %v\nSourceAddr: %v\nRemoteAddr: %v\n", 
-			c.ClientId, c.SourceAddr, remoteAddr))
+			c.ClientId, c.SourceAddr, addr))
 		}
 	}()
 

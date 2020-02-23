@@ -150,7 +150,7 @@ func (c *Client) startReverseTCPListener() (err error) {
 			c.MsgChann <- msgPack
 
 			logger.Info(fmt.Sprintf("New Connection\nClientId: %v\nSourceAddr: %v\nRemoteAddr: %v\n", 
-			c.ClientId, c.SourceAddr, conn.RemoteAddr))
+			c.ClientId, c.SourceAddr, conn.RemoteAddr()))
 		}
 	}()
 
@@ -190,7 +190,7 @@ func (c *Client) startReverseUDPListener() (err error) {
 				c.MsgChann <- msgPack
 
 				logger.Info(fmt.Sprintf("New Connection\nClientId: %v\nSourceAddr: %v\nRemoteAddr: %v\n", 
-				c.ClientId, c.SourceAddr, conn.RemoteAddr))
+				c.ClientId, c.SourceAddr, addr))
 			}
 
 			connId := c.UDPAddrToConnId[addr]
