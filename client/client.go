@@ -107,6 +107,7 @@ func (c *Client) register() error {
 			Direction: c.Direction,
 			Protocol: c.Protocol,
 			Description: c.Description,
+			Compress: c.Compress,
 		},
 	}
 

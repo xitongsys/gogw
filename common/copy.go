@@ -42,6 +42,10 @@ func Copy(w io.Writer, r io.Reader,
 			//return err
 		}
 
+		if ww, ok := newWriter.(*zlib.Writer); ok {
+			ww.Flush()
+		}
+
 		if ww, ok := w.(http.Flusher); ok {
 			ww.Flush()
 		}
