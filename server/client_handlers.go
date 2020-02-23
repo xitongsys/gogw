@@ -23,6 +23,9 @@ func (c *Client) HttpHandler(w http.ResponseWriter, req *http.Request) {
 	}else if msgPack.MsgType == schema.MSG_TYPE_MSG_COMMON_REQUEST {
 		msg := <- c.MsgChann
 		schema.WriteMsg(w, msg)
+
+	}else{
+		logger.Error("Unknown MsgType = ", msgPack.MsgType)
 	}
 }
 
@@ -52,8 +55,6 @@ func (c *Client) openConnHandler(msg *schema.OpenConnRequest, w http.ResponseWri
 		schema.WriteMsg(w, msgPack)
 
 	}else if msg.Role == schema.ROLE_READER {
-		logger.Debug("reader: ", msg.ConnId)
-
 		if conni, ok := c.Conns.Load(msg.ConnId); ok {
 			conn, _ := conni.(*common.Conn)
 
@@ -62,8 +63,6 @@ func (c *Client) openConnHandler(msg *schema.OpenConnRequest, w http.ResponseWri
 		}	
 
 	}else if msg.Role == schema.ROLE_WRITER {
-		logger.Debug("writer: ", msg.ConnId)
-
 		if conni, ok := c.Conns.Load(msg.ConnId); ok {
 			conn, _ := conni.(*common.Conn)
 

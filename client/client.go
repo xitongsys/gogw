@@ -124,7 +124,6 @@ func (c *Client) register() error {
 
 	msgPack, err = schema.ReadMsg(response.Body)
 	if err != nil {
-		logger.Error(err)
 		return err
 	}
 
@@ -191,8 +190,6 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 		}()
 
 		http.Post(url, "", r)
-
-		logger.Debug("conn->server done")
 	}()
 
 	//server -> conn
@@ -217,7 +214,6 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 		}
 
 		common.Copy(conn, response.Body, false, c.Compress, nil)
-		logger.Debug("server -> conn done")
 	}()
 
 	return nil
@@ -251,6 +247,12 @@ func (c *Client) startForwardTCPListener() error {
 
 			if connId, err := c.queryConnId(); err == nil {
 				c.openConn(connId, conn)
+
+				logger.Info(fmt.Sprintf("New Connection\nClientId: %v\nSourceAddr: %v\nRemoteAddr: %v\n", 
+				c.ClientId, c.SourceAddr, conn.RemoteAddr))
+				
+			}else{
+				logger.Error(err)
 			}
 		}
 	}()
@@ -270,7 +272,6 @@ func (c *Client) startForwardUDPListener() error {
 		for {
 			n, remoteAddr, err := listener.ReadFromUDP(bs)
 			if err != nil {
-				logger.Error(err)
 				return
 			}
 
@@ -280,6 +281,9 @@ func (c *Client) startForwardUDPListener() error {
 					c.UDPAddrToConnId[addr] = connId
 					conn := common.NewUDPConn(remoteAddr, listener)
 					c.openConn(connId, conn)
+
+				}else{
+					logger.Error(err)
 				}
 			}
 
@@ -288,6 +292,9 @@ func (c *Client) startForwardUDPListener() error {
 				udpConn, _ := conn.Conn.(*common.UDPConn)
 				udpConn.PipeWriter.Write(bs[:n])
 			}
+
+			logger.Info(fmt.Sprintf("New Connection\nClientId: %v\nSourceAddr: %v\nRemoteAddr: %v\n", 
+			c.ClientId, c.SourceAddr, remoteAddr))
 		}
 	}()
 
@@ -311,20 +318,17 @@ func (c *Client) queryConnId() (string, error){
 
 	response, err := http.Post(url, "", r)
 	if err != nil {
-		logger.Error(err)
 		return "", err
 	}
 
 	msgPack, err = schema.ReadMsg(response.Body)
 	if err != nil || msgPack.MsgType != schema.MSG_TYPE_OPEN_CONN_RESPONSE{
-		logger.Error(err)
 		return "", err
 	}
 
 	msg, ok := msgPack.Msg.(*schema.OpenConnResponse)
 	if !ok || msg.Status != schema.STATUS_SUCCESS {
 		err = fmt.Errorf("query id error")
-		logger.Error(err)
 		return "", err
 	}
 
