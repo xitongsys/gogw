@@ -25,6 +25,7 @@ type Client struct {
 	Direction string
 	Protocol string
 	Description string
+	Compress bool
 	ClientId string
 
 	Conns *sync.Map
@@ -38,6 +39,7 @@ func NewClient(
 	direction string,
 	protocol string,
 	description string,
+	compress bool,
 ) *Client {
 	return &Client {
 		ServerAddr: serverAddr,
@@ -46,6 +48,7 @@ func NewClient(
 		Direction: direction,
 		Protocol: protocol,
 		Description: description,
+		Compress: compress,
 		ClientId: "",
 		Conns: &sync.Map{},
 		UDPAddrToConnId: make(map[string]string),
@@ -53,8 +56,8 @@ func NewClient(
 }
 
 func (c *Client) Start() {
-	logger.Info(fmt.Sprintf("\nclient start\nServer: %v\nSourceAddr: %v\nToPort: %v\nDirection: %v\nProtocol: %v\nDescription: %v\n", 
-	c.ServerAddr, c.SourceAddr, c.ToPort, c.Direction, c.Protocol, c.Description))
+	logger.Info(fmt.Sprintf("\nclient start\nServer: %v\nSourceAddr: %v\nToPort: %v\nDirection: %v\nProtocol: %v\nDescription: %v\nCompress: %v\n", 
+	c.ServerAddr, c.SourceAddr, c.ToPort, c.Direction, c.Protocol, c.Description, c.Compress))
 
 	//start heartbeat
 	go c.heartbeatLoop()
@@ -182,7 +185,7 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 		r, w := io.Pipe()
 		go func(){
 			schema.WriteMsg(w, readerMsgPack)
-			io.Copy(w, conn)
+			common.Copy(w, conn, c.Compress, false, nil)
 			w.Close()
 		}()
 
@@ -212,7 +215,7 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 			return
 		}
 
-		io.Copy(conn, response.Body)
+		common.Copy(conn, response.Body, false, c.Compress, nil)
 		logger.Debug("server -> conn done")
 	}()
 

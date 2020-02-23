@@ -12,6 +12,7 @@ type ClientConfig struct {
 	Protocol string
 	Direction string
 	Description string
+	Compress bool
 }
 
 type ServerConfig struct {

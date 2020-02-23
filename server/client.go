@@ -9,6 +9,7 @@ import (
 	"gogw/common"
 	"gogw/logger"
 	"gogw/schema"
+	"gogw/monitor"
 )
 
 type Client struct {
@@ -19,6 +20,7 @@ type Client struct {
 	Protocol    string
 	SourceAddr  string
 	Description string
+	Compress bool
 
 	Conns    *sync.Map
 	ConnNumber int
@@ -29,7 +31,7 @@ type Client struct {
 	UDPAddrToConnId map[string]string
 
 	LastHeartbeatTime time.Time
-	SpeedMonitor      *SpeedMonitor
+	SpeedMonitor      *monitor.SpeedMonitor
 }
 
 func NewClient(
@@ -40,6 +42,7 @@ func NewClient(
 	protocol string,
 	sourceAddr string,
 	description string,
+	compress bool,
 ) *Client {
 
 	return &Client{
@@ -50,6 +53,7 @@ func NewClient(
 		Protocol:    protocol,
 		SourceAddr:  sourceAddr,
 		Description: description,
+		Compress: compress,
 
 		Conns:    &sync.Map{},
 		ConnNumber: 0,
@@ -58,7 +62,7 @@ func NewClient(
 		UDPAddrToConnId: make(map[string]string),
 
 		LastHeartbeatTime: time.Now(),
-		SpeedMonitor:      NewSpeedMonitor(),
+		SpeedMonitor:      monitor.NewSpeedMonitor(),
 	}
 }
 

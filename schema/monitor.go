@@ -25,6 +25,7 @@ type ClientInfo struct {
 	SourceAddr string
 	Direction string
 	Description string
+	Compress bool
 	
 	ConnectionNumber int
 	UploadSpeed int

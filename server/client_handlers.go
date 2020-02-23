@@ -57,21 +57,7 @@ func (c *Client) openConnHandler(msg *schema.OpenConnRequest, w http.ResponseWri
 		if conni, ok := c.Conns.Load(msg.ConnId); ok {
 			conn, _ := conni.(*common.Conn)
 
-			data := make([]byte, PACKSIZE)
-			for {
-				n, err := req.Body.Read(data)
-				if err != nil {
-					logger.Error(err)
-					break
-				}
-
-				conn.Conn.Write(data[:n])
-
-				//monitor
-				c.SpeedMonitor.Add(0, int64(n))
-			}
-			//_, err := io.Copy(conn.Conn, req.Body)
-
+			common.Copy(conn.Conn, req.Body, false, c.Compress, c.SpeedMonitor)
 			c.deleteConn(msg.ConnId)
 		}	
 
@@ -85,21 +71,7 @@ func (c *Client) openConnHandler(msg *schema.OpenConnRequest, w http.ResponseWri
 			w.Header().Set("Cache-Control", "no-cache")
 			w.Header().Set("Connection", "keep-alive")
 
-			data := make([]byte, PACKSIZE)
-			for {
-				n, err := conn.Conn.Read(data)
-				if err != nil {
-					logger.Error(err)
-					break
-				}
-				w.Write(data[:n])
-				ww, _ := w.(http.Flusher)
-				ww.Flush()
-
-				//monitor
-				c.SpeedMonitor.Add(int64(n), 0)
-			}
-			
+			common.Copy(w, conn.Conn, c.Compress, false, c.SpeedMonitor)
 			c.deleteConn(msg.ConnId)
 		}
 

@@ -12,6 +12,7 @@ type RegisterRequest struct {
 	Direction string
 	Protocol string
 	Description string
+	Compress bool
 }
 
 type RegisterResponse struct {

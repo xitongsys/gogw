@@ -1,4 +1,4 @@
-package server
+package monitor
 
 import (
 	"gogw/statistics"

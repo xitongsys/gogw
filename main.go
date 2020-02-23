@@ -46,6 +46,7 @@ func main(){
 				cfg.Direction, 
 				cfg.Protocol, 
 				cfg.Description,
+				cfg.Compress,
 			)
 
 			wg.Add(1)
