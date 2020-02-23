@@ -8,6 +8,7 @@ function Client(divid){
         Direction: "",
         SourceAddr: "",
         Description: "",
+        Compress: "",
 
         ConnectionNumber: 0,
         UploadSpeed: [0],
@@ -88,6 +89,7 @@ function Client(divid){
             this.SourceAddr = c.SourceAddr
             this.Description = c.Description
             this.Direction = c.Direction
+            this.Compress = c.Compress
 
             this.ConnectionNumber = c.ConnectionNumber
             var us = c.UploadSpeed, ds = c.DownloadSpeed
@@ -158,6 +160,11 @@ function Client(divid){
                     '<div class="row">' +
                         '<div class="col-sm-4"><h6>Description:</h6></div>' +
                         '<div class="col-sm-8">' + this.Description + '</div>' + 
+                    '</div>' +
+
+                    '<div class="row">' +
+                        '<div class="col-sm-4"><h6>Compress:</h6></div>' +
+                        '<div class="col-sm-8">' + this.Compress + '</div>' + 
                     '</div>' +
 
                     '<div class="row">' +
