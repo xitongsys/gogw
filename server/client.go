@@ -129,6 +129,8 @@ func (c *Client) startReverseTCPListener() (err error) {
 	}
 
 	go func() {
+		defer recover()
+
 		for {
 			conn, err := c.TCPListener.Accept()
 			if err != nil {
@@ -164,6 +166,8 @@ func (c *Client) startReverseUDPListener() (err error) {
 	}
 
 	go func() {
+		defer recover()
+		
 		bs := make([]byte, PACKSIZE)
 		for {
 			n, remoteAddr, err := c.UDPListener.ReadFromUDP(bs)
