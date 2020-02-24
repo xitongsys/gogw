@@ -31,7 +31,8 @@ type Client struct {
 	UDPAddrToConnId map[string]string
 
 	LastHeartbeatTime time.Time
-	SpeedMonitor      *monitor.SpeedMonitor
+	UploadSpeedMonitor      *monitor.SpeedMonitor
+	DownloadSpeedMonitor      *monitor.SpeedMonitor
 }
 
 func NewClient(
@@ -62,7 +63,8 @@ func NewClient(
 		UDPAddrToConnId: make(map[string]string),
 
 		LastHeartbeatTime: time.Now(),
-		SpeedMonitor:      monitor.NewSpeedMonitor(),
+		UploadSpeedMonitor:      monitor.NewSpeedMonitor(),
+		DownloadSpeedMonitor:      monitor.NewSpeedMonitor(),
 	}
 }
 

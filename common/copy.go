@@ -52,7 +52,7 @@ func Copy(w io.Writer, r io.Reader,
 
 		//monitor
 		if m != nil {
-			m.Add(0, int64(n))
+			m.Add(int64(n))
 		}
 	}
 

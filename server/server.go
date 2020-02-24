@@ -132,8 +132,8 @@ func (s *Server) getAllInfo() *schema.AllInfo {
 			Description: client.Description,
 			Compress: client.Compress,
 			ConnectionNumber: common.Max(client.ConnNumber, 0),
-			UploadSpeed: client.SpeedMonitor.GetUploadSpeed(),
-			DownloadSpeed: client.SpeedMonitor.GetDownloadSpeed(),
+			UploadSpeed: client.UploadSpeedMonitor.GetSpeed(),
+			DownloadSpeed: client.DownloadSpeedMonitor.GetSpeed(),
 		}
 
 		allInfo.Clients = append(allInfo.Clients, cinfo)

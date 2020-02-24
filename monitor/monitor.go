@@ -8,44 +8,26 @@ import (
 var WINLENGTH = time.Second
 
 type SpeedMonitor struct {
-	Upload *statistics.WindowStat
-	Download *statistics.WindowStat
+	SpeedRecord *statistics.WindowStat
 }
 
 func NewSpeedMonitor() *SpeedMonitor {
 	return & SpeedMonitor{
-		Upload: statistics.NewWindowStat(WINLENGTH, statistics.Sum, 100),
-		Download: statistics.NewWindowStat(WINLENGTH, statistics.Sum, 100),
+		SpeedRecord: statistics.NewWindowStat(WINLENGTH, statistics.Sum, 100),
 	}
 }
 
-func (sm *SpeedMonitor) Add(uploadSize int64, downloadSize int64) {
-	if uploadSize > 0 {
-		sm.Upload.Add(uploadSize)
-	}
-
-	if downloadSize > 0 {
-		sm.Download.Add(downloadSize)
+func (sm *SpeedMonitor) Add(size int64) {
+	if size > 0 {
+		sm.SpeedRecord.Add(size)
 	}
 }
 
-func (sm *SpeedMonitor) GetUploadSpeed() int {
-	vs, err := sm.Upload.GetLatest()
+func (sm *SpeedMonitor) GetSpeed() int {
+	vs, err := sm.SpeedRecord.GetLatest()
 	if err != nil || vs.Value == nil {
 		return 0
 	}
+	
 	return int(vs.Value.(int64))
 }
-
-func (sm *SpeedMonitor) GetDownloadSpeed() int {
-	vs, err := sm.Download.GetLatest()
-	if err != nil || vs.Value == nil {
-		return 0
-	}
-	return int(vs.Value.(int64))
-}
-
-
-
-
-
