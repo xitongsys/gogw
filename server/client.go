@@ -131,7 +131,11 @@ func (c *Client) startReverseTCPListener() (err error) {
 	}
 
 	go func() {
-		defer recover()
+		defer func(){
+			if err := recover(); err != nil {
+				logger.Warn(err)
+			}
+		}()
 
 		for {
 			conn, err := c.TCPListener.Accept()
@@ -168,7 +172,11 @@ func (c *Client) startReverseUDPListener() (err error) {
 	}
 
 	go func() {
-		defer recover()
+		defer func(){
+			if err := recover(); err != nil {
+				logger.Warn(err)
+			}
+		}()
 		
 		bs := make([]byte, PACKSIZE)
 		for {
