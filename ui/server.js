@@ -1,4 +1,11 @@
 function Server(divid){
+    uploadSpeed = []
+    downloadSpeed = []
+    for(var i=0; i<RECORD_CAPACITY; i++){
+        uploadSpeed.push(-1)
+        downloadSpeed.push(-1)
+    }
+
     return {
         DivId: divid,
         ServerAddr: "",
@@ -10,8 +17,8 @@ function Server(divid){
         ForwardNumber: 0,
         ReverseNumber: 0,
 
-        UploadSpeed: [0],
-        DownloadSpeed: [0],
+        UploadSpeed: uploadSpeed,
+        DownloadSpeed: downloadSpeed,
 
         Capacity: RECORD_CAPACITY,
 

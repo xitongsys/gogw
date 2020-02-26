@@ -1,4 +1,11 @@
 function Client(divid){
+    uploadSpeed = []
+    downloadSpeed = []
+    for(var i=0; i<RECORD_CAPACITY; i++){
+        uploadSpeed.push(-1)
+        downloadSpeed.push(-1)
+    }
+
     return {
         DivId: divid,
         ClientId: "0",
@@ -11,8 +18,8 @@ function Client(divid){
         Compress: "",
 
         ConnectionNumber: 0,
-        UploadSpeed: [0],
-        DownloadSpeed: [0],
+        UploadSpeed: uploadSpeed,
+        DownloadSpeed: downloadSpeed,
 
         Capacity: RECORD_CAPACITY,
 
