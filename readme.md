@@ -83,7 +83,7 @@ Suppose you have a local host A(10.0.0.2), local host B(10.0.0.3) and another ho
 Now host B can access host C web servie through ```http://10.0.0.2:81```
 
 ### Web ui
-It has a simple web ui on gogw server. ```http://serverip:server_port/ur```
+It has a simple web ui on gogw server. ```http://server_ip:server_port/ui```
 ![ui](ui.png)
 
 
@@ -94,6 +94,6 @@ Some functions or code improvements can be added:
 * unit test
 * ...
 
-Any contribution is welcome ! Or just a star :)
+Any contribution is welcome even just a star :)
 
 
