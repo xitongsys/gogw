@@ -63,7 +63,8 @@ func (c *Client) openConnHandler(msg *schema.OpenConnRequest, w http.ResponseWri
 				c.deleteConn(msg.ConnId)
 
 			}else if c.HttpVersion == schema.HTTP_VERSION_1_0 {
-				if err := common.CopyOne(conn.Conn, req.Body, false, c.Compress, c.UploadSpeedMonitor); err != nil {
+				err := common.CopyOne(conn.Conn, req.Body, false, c.Compress, c.UploadSpeedMonitor)
+				if err != nil {
 					c.deleteConn(msg.ConnId)
 				}
 			}
@@ -82,7 +83,8 @@ func (c *Client) openConnHandler(msg *schema.OpenConnRequest, w http.ResponseWri
 				c.deleteConn(msg.ConnId)
 
 			}else if c.HttpVersion == schema.HTTP_VERSION_1_0 {
-				if err := common.CopyOne(w, conn.Conn, c.Compress, false, c.DownloadSpeedMonitor); err != nil {
+				err := common.CopyOne(w, conn.Conn, c.Compress, false, c.DownloadSpeedMonitor)
+				if err != nil {
 					c.deleteConn(msg.ConnId)
 				}
 			}

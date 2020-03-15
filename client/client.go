@@ -208,6 +208,7 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 				go func() {
 					schema.WriteMsg(w, readerMsgPack)
 					err = common.CopyOne(w, conn, c.Compress, false, nil)
+					w.Close()
 				}()
 
 				http.Post(url, "", r)
