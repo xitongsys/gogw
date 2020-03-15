@@ -59,8 +59,8 @@ func NewClient(
 }
 
 func (c *Client) Start() {
-	logger.Info(fmt.Sprintf("\nclient start\nServer: %v\nSourceAddr: %v\nToPort: %v\nDirection: %v\nProtocol: %v\nDescription: %v\nCompress: %v\n", 
-	c.ServerAddr, c.SourceAddr, c.ToPort, c.Direction, c.Protocol, c.Description, c.Compress))
+	logger.Info(fmt.Sprintf("\nclient start\nServer: %v\nSourceAddr: %v\nToPort: %v\nDirection: %v\nProtocol: %v\nDescription: %v\nCompress: %v\nHttpVersion: %v\n", 
+	c.ServerAddr, c.SourceAddr, c.ToPort, c.Direction, c.Protocol, c.Description, c.Compress, c.HttpVersion))
 
 	//start heartbeat
 	go c.heartbeatLoop()
@@ -111,6 +111,7 @@ func (c *Client) register() error {
 			Protocol: c.Protocol,
 			Description: c.Description,
 			Compress: c.Compress,
+			HttpVersion: c.HttpVersion,
 		},
 	}
 
