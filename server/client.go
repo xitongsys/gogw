@@ -21,6 +21,7 @@ type Client struct {
 	SourceAddr  string
 	Description string
 	Compress bool
+	HttpVersion string
 
 	Conns    *sync.Map
 	ConnNumber int
@@ -44,6 +45,7 @@ func NewClient(
 	sourceAddr string,
 	description string,
 	compress bool,
+	httpVersion string,
 ) *Client {
 
 	return &Client{
@@ -55,6 +57,7 @@ func NewClient(
 		SourceAddr:  sourceAddr,
 		Description: description,
 		Compress: compress,
+		HttpVersion: httpVersion,
 
 		Conns:    &sync.Map{},
 		ConnNumber: 0,

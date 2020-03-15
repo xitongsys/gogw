@@ -27,6 +27,7 @@ type Client struct {
 	Description string
 	Compress bool
 	ClientId string
+	HttpVersion string
 
 	Conns *sync.Map
 	UDPAddrToConnId map[string]string
@@ -40,6 +41,7 @@ func NewClient(
 	protocol string,
 	description string,
 	compress bool,
+	httpVersion string,
 ) *Client {
 	return &Client {
 		ServerAddr: serverAddr,
@@ -49,6 +51,7 @@ func NewClient(
 		Protocol: protocol,
 		Description: description,
 		Compress: compress,
+		HttpVersion: httpVersion,
 		ClientId: "",
 		Conns: &sync.Map{},
 		UDPAddrToConnId: make(map[string]string),
@@ -187,14 +190,28 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 			},
 		}
 
-		r, w := io.Pipe()
-		go func(){
-			schema.WriteMsg(w, readerMsgPack)
-			common.Copy(w, conn, c.Compress, false, nil)
-			w.Close()
-		}()
+		if c.HttpVersion == schema.HTTP_VERSION_1_1 {
+			r, w := io.Pipe()
+			go func(){
+				schema.WriteMsg(w, readerMsgPack)
+				common.Copy(w, conn, c.Compress, false, nil)
+				w.Close()
+			}()
 
-		http.Post(url, "", r)
+			http.Post(url, "", r)
+
+		}else if c.HttpVersion == schema.HTTP_VERSION_1_0 {
+			var err error = nil
+			for err == nil {
+				r, w := io.Pipe()
+				go func() {
+					schema.WriteMsg(w, readerMsgPack)
+					err = common.CopyOne(w, conn, c.Compress, false, nil)
+				}()
+
+				http.Post(url, "", r)
+			}
+		}
 	}()
 
 	//server -> conn
@@ -207,18 +224,39 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 			},
 		}
 
-		r, w := io.Pipe()
-		go func(){
-			schema.WriteMsg(w, writerMsgPack)
-			w.Close()
-		}()
+		if c.HttpVersion == schema.HTTP_VERSION_1_1 {
+			r, w := io.Pipe()
+			go func(){
+				schema.WriteMsg(w, writerMsgPack)
+				w.Close()
+			}()
 
-		response , err := http.Post(url, "", r)
-		if err != nil {
-			return
+			response , err := http.Post(url, "", r)
+			if err != nil {
+				return
+			}
+
+			common.Copy(conn, response.Body, false, c.Compress, nil)
+
+		}else if c.HttpVersion == schema.HTTP_VERSION_1_0 {
+			var err error = nil
+
+			for err == nil {
+				r, w := io.Pipe()
+				go func(){
+					schema.WriteMsg(w, writerMsgPack)
+					w.Close()
+				}()
+				
+				var response *http.Response
+				response , err = http.Post(url, "", r)
+				if err != nil {
+					return
+				}
+
+				err = common.CopyOne(conn, response.Body, false, c.Compress, nil)
+			}
 		}
-
-		common.Copy(conn, response.Body, false, c.Compress, nil)
 	}()
 
 	return nil

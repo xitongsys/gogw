@@ -54,6 +54,7 @@ func (s *Server) registerHandler(w http.ResponseWriter, req *http.Request) {
 		msg.SourceAddr,
 		msg.Description,
 		msg.Compress,
+		msg.HttpVersion,
 	)
 
 	s.Clients.Store(clientId, client)

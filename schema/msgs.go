@@ -13,6 +13,7 @@ type RegisterRequest struct {
 	Protocol string
 	Description string
 	Compress bool
+	HttpVersion string
 }
 
 type RegisterResponse struct {

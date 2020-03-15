@@ -58,8 +58,15 @@ func (c *Client) openConnHandler(msg *schema.OpenConnRequest, w http.ResponseWri
 		if conni, ok := c.Conns.Load(msg.ConnId); ok {
 			conn, _ := conni.(*common.Conn)
 
-			common.Copy(conn.Conn, req.Body, false, c.Compress, c.UploadSpeedMonitor)
-			c.deleteConn(msg.ConnId)
+			if c.HttpVersion == schema.HTTP_VERSION_1_1 {
+				common.Copy(conn.Conn, req.Body, false, c.Compress, c.UploadSpeedMonitor)
+				c.deleteConn(msg.ConnId)
+
+			}else if c.HttpVersion == schema.HTTP_VERSION_1_0 {
+				if err := common.CopyOne(conn.Conn, req.Body, false, c.Compress, c.UploadSpeedMonitor); err != nil {
+					c.deleteConn(msg.ConnId)
+				}
+			}
 		}	
 
 	}else if msg.Role == schema.ROLE_WRITER {
@@ -70,8 +77,15 @@ func (c *Client) openConnHandler(msg *schema.OpenConnRequest, w http.ResponseWri
 			w.Header().Set("Cache-Control", "no-cache")
 			w.Header().Set("Connection", "keep-alive")
 
-			common.Copy(w, conn.Conn, c.Compress, false, c.DownloadSpeedMonitor)
-			c.deleteConn(msg.ConnId)
+			if c.HttpVersion == schema.HTTP_VERSION_1_1 {
+				common.Copy(w, conn.Conn, c.Compress, false, c.DownloadSpeedMonitor)
+				c.deleteConn(msg.ConnId)
+
+			}else if c.HttpVersion == schema.HTTP_VERSION_1_0 {
+				if err := common.CopyOne(w, conn.Conn, c.Compress, false, c.DownloadSpeedMonitor); err != nil {
+					c.deleteConn(msg.ConnId)
+				}
+			}
 		}
 
 	}else {
