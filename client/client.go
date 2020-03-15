@@ -163,6 +163,8 @@ func (c *Client) msgRequestLoop(){
 			logger.Error(err)
 			continue
 		}
+
+		response.Body.Close()
 		
 		if msgPackResponse.MsgType == schema.MSG_TYPE_OPEN_CONN_RESPONSE {
 			msg := msgPackResponse.Msg.(*schema.OpenConnResponse)
@@ -246,7 +248,7 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 		}else if c.HttpVersion == schema.HTTP_VERSION_1_0 {
 			var err error = nil
 
-			for err == nil && err != io.EOF {
+			for err == nil || err == io.EOF {
 				r, w := io.Pipe()
 				go func(){
 					schema.WriteMsg(w, writerMsgPack)
@@ -261,6 +263,8 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 
 				err = common.Copy(conn, response.Body, false, c.Compress, nil)
 				response.Body.Close()
+
+				logger.Info("=======", err)
 			}
 		}
 	}()
