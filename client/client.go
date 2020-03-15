@@ -211,7 +211,9 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 					w.Close()
 				}()
 
-				http.Post(url, "", r)
+				if _, err2 := http.Post(url, "", r); err2 != nil {
+					err = err2
+				}
 			}
 		}
 	}()
@@ -239,11 +241,12 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 			}
 
 			common.Copy(conn, response.Body, false, c.Compress, nil)
+			response.Body.Close()
 
 		}else if c.HttpVersion == schema.HTTP_VERSION_1_0 {
 			var err error = nil
 
-			for err == nil {
+			for err == nil && err != io.EOF {
 				r, w := io.Pipe()
 				go func(){
 					schema.WriteMsg(w, writerMsgPack)
@@ -256,7 +259,8 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 					return
 				}
 
-				err = common.CopyOne(conn, response.Body, false, c.Compress, nil)
+				err = common.Copy(conn, response.Body, false, c.Compress, nil)
+				response.Body.Close()
 			}
 		}
 	}()

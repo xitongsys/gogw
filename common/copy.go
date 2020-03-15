@@ -27,7 +27,6 @@ func Copy(w io.Writer, r io.Reader,
 		if newReader, err = zlib.NewReader(r); err != nil {
 			return err
 		}
-		
 	}
 
 	data := make([]byte, PACKSIZE)

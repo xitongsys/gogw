@@ -1,6 +1,7 @@
 package server
 
 import (
+	"io"
 	"net"
 	"net/http"
 
@@ -63,8 +64,8 @@ func (c *Client) openConnHandler(msg *schema.OpenConnRequest, w http.ResponseWri
 				c.deleteConn(msg.ConnId)
 
 			}else if c.HttpVersion == schema.HTTP_VERSION_1_0 {
-				err := common.CopyOne(conn.Conn, req.Body, false, c.Compress, c.UploadSpeedMonitor)
-				if err != nil {
+				err := common.Copy(conn.Conn, req.Body, false, c.Compress, c.UploadSpeedMonitor)
+				if err != nil && err != io.EOF {
 					c.deleteConn(msg.ConnId)
 				}
 			}
@@ -74,11 +75,11 @@ func (c *Client) openConnHandler(msg *schema.OpenConnRequest, w http.ResponseWri
 		if conni, ok := c.Conns.Load(msg.ConnId); ok {
 			conn, _ := conni.(*common.Conn)
 
-			w.Header().Set("Content-Type", "text/event-stream")
-			w.Header().Set("Cache-Control", "no-cache")
-			w.Header().Set("Connection", "keep-alive")
-
 			if c.HttpVersion == schema.HTTP_VERSION_1_1 {
+				w.Header().Set("Content-Type", "text/event-stream")
+				w.Header().Set("Cache-Control", "no-cache")
+				w.Header().Set("Connection", "keep-alive")
+
 				common.Copy(w, conn.Conn, c.Compress, false, c.DownloadSpeedMonitor)
 				c.deleteConn(msg.ConnId)
 
