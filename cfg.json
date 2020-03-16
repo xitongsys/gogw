@@ -10,7 +10,7 @@
 		"HttpVersion": "http1.1"
 	}],
 	"Server":{
-		"ServerAddr":"0.0.0.0:4000",
+		"ServerAddr":"0.0.0.0:80",
 		"TimeoutSecond": 30
 	}
 }
