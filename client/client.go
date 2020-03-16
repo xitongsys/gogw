@@ -211,7 +211,7 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 
 			for err == nil {
 				n, err = conn.Read(data)
-				if err != nil {
+				if n <= 0 && err != nil {
 					break
 				}
 
@@ -222,7 +222,7 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 				r, w := io.Pipe()
 				go func() {
 					schema.WriteMsg(w, readerMsgPack)
-					_, err = common.CopyOne(w, bytes.NewReader(data[:n]), c.Compress, false, nil)
+					_, err = common.CopyAll(w, bytes.NewReader(data[:n]), c.Compress, false, nil)
 					logger.Info("=====send to server====", n, err)
 					w.Close()
 				}()

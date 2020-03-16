@@ -96,7 +96,7 @@ func CopyOne(w io.Writer, r io.Reader,
 			continue
 		}
 
-		n, err = newWriter.Write(data[:n])
+		_, err = newWriter.Write(data[:n])
 		if err != nil {
 			return 0, err
 		}
@@ -105,16 +105,12 @@ func CopyOne(w io.Writer, r io.Reader,
 			ww.Flush()
 		}
 
-		if ww, ok := w.(http.Flusher); ok {
-			ww.Flush()
+		//monitor
+		if m != nil {
+			m.Add(int64(n))
 		}
 	}
-
-	//monitor
-	if m != nil {
-		m.Add(int64(n))
-	}
-	
+		
 	return n, err
 }
 
