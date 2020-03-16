@@ -23,6 +23,7 @@ type Client struct {
 	Compress bool
 	HttpVersion string
 
+	Mutex 	 sync.Mutex
 	Conns    *sync.Map
 	ConnNumber int
 	MsgChann chan *schema.MsgPack
@@ -59,6 +60,7 @@ func NewClient(
 		Compress: compress,
 		HttpVersion: httpVersion,
 
+		Mutex: sync.Mutex{},
 		Conns:    &sync.Map{},
 		ConnNumber: 0,
 		MsgChann: make(chan *schema.MsgPack),
@@ -116,9 +118,14 @@ func (c *Client) addConn(connId string, conn net.Conn) {
 }
 
 func (c *Client) deleteConn(connId string) {
-	//just approximate
-	if _, ok := c.Conns.Load(connId); ok {
+	c.Mutex.Lock()
+	defer c.Mutex.Unlock()
+	if conni, ok := c.Conns.Load(connId); ok {
 		c.ConnNumber--
+
+		if conn, ok := conni.(*common.Conn); ok {
+			conn.Conn.Close()
+		}
 	}
 
 	c.Conns.Delete(connId)

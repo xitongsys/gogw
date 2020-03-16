@@ -22,6 +22,11 @@ const (
 )
 
 const (
+	OPERATOR_DATA_TRANSFER = "data_transfer"
+	OPERATOR_CONN_CLOSE = "conn close"
+)
+
+const (
 	MSG_TYPE_REGISTER_REQUEST = "registerrequest"
 	MSG_TYPE_REGISTER_RESPONSE = "registerresponse"
 

@@ -64,10 +64,17 @@ func (c *Client) openConnHandler(msg *schema.OpenConnRequest, w http.ResponseWri
 				c.deleteConn(msg.ConnId)
 
 			}else if c.HttpVersion == schema.HTTP_VERSION_1_0 {
-				err := common.Copy(conn.Conn, req.Body, false, c.Compress, c.UploadSpeedMonitor)
-				if err != nil && err != io.EOF {
+				//n, err := io.Copy(conn.Conn, req.Body)
+				n, err := common.CopyAll(conn.Conn, req.Body, false, c.Compress, c.UploadSpeedMonitor)
+				logger.Info("=====send to conn=====", n, err)
+				req.Body.Close()
+				if (err != nil && err != io.EOF) || msg.Operator == schema.OPERATOR_CONN_CLOSE {
 					c.deleteConn(msg.ConnId)
+					logger.Info("==========close conn=======", msg.Operator)
+					return //no bytes write to client notifiy the client close conn
 				}
+
+				w.Write([]byte("0"))//write a byte to client 
 			}
 		}	
 
@@ -84,11 +91,17 @@ func (c *Client) openConnHandler(msg *schema.OpenConnRequest, w http.ResponseWri
 				c.deleteConn(msg.ConnId)
 
 			}else if c.HttpVersion == schema.HTTP_VERSION_1_0 {
-				err := common.CopyOne(w, conn.Conn, c.Compress, false, c.DownloadSpeedMonitor)
-				if err != nil {
+				n, err := common.CopyOne(w, conn.Conn, c.Compress, false, c.DownloadSpeedMonitor)
+				logger.Info("===aaaa=====", n, err)
+				if err != nil || msg.Operator == schema.OPERATOR_CONN_CLOSE {
 					c.deleteConn(msg.ConnId)
 				}
+				//if copyone copy 0 bytes, the client will close conn.
+				//one case is: copy some bytes but error occur. the client will close in the next request.
 			}
+
+		}else{
+			//empty content send to client to close conn
 		}
 
 	}else {

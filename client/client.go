@@ -190,6 +190,7 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 			Msg: &schema.OpenConnRequest {
 				ConnId: connId,
 				Role: schema.ROLE_READER,
+				Operator: schema.OPERATOR_DATA_TRANSFER,
 			},
 		}
 
@@ -205,18 +206,47 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 
 		}else if c.HttpVersion == schema.HTTP_VERSION_1_0 {
 			var err error = nil
+			var n int = 0
+			data := make([]byte, common.PACKSIZE)
+
 			for err == nil {
+				n, err = conn.Read(data)
+				if err != nil {
+					break
+				}
+
+				if n <= 0 {
+					continue
+				}
+
 				r, w := io.Pipe()
 				go func() {
 					schema.WriteMsg(w, readerMsgPack)
-					err = common.CopyOne(w, conn, c.Compress, false, nil)
+					_, err = common.CopyOne(w, bytes.NewReader(data[:n]), c.Compress, false, nil)
+					logger.Info("=====send to server====", n, err)
 					w.Close()
 				}()
 
-				if _, err2 := http.Post(url, "", r); err2 != nil {
+				if resp, err2 := http.Post(url, "", r); err2 != nil {
 					err = err2
+					logger.Info("=====post error====", err2)
+
+				}else{
+					var respBs = make([]byte, 1)
+					var n int 
+					n, err = resp.Body.Read(respBs)
+					//zero response means close conn
+					if n == 0 || (err != nil && err != io.EOF) {
+						logger.Info("===closed by 0 response", n, err)
+						break
+					}
+					err = nil
+					logger.Info("====post response===", string(respBs))
+					resp.Body.Close()
 				}
 			}
+
+			c.closeConn(connId)
 		}
 	}()
 
@@ -227,6 +257,7 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 			Msg: &schema.OpenConnRequest {
 				ConnId: connId,
 				Role: schema.ROLE_WRITER,
+				Operator: schema.OPERATOR_DATA_TRANSFER,
 			},
 		}
 
@@ -247,8 +278,8 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 
 		}else if c.HttpVersion == schema.HTTP_VERSION_1_0 {
 			var err error = nil
-
-			for err == nil || err == io.EOF {
+			var n int = 0
+			for err == nil || ( err == io.EOF && n > 0) {
 				r, w := io.Pipe()
 				go func(){
 					schema.WriteMsg(w, writerMsgPack)
@@ -261,15 +292,53 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 					return
 				}
 
-				err = common.Copy(conn, response.Body, false, c.Compress, nil)
+				n, err = common.CopyAll(conn, response.Body, false, c.Compress, nil)
 				response.Body.Close()
 
-				logger.Info("=======", err)
+				logger.Info("====send to conn ===", n, err)
 			}
+
+			c.closeConn(connId)
 		}
 	}()
 
 	return nil
+}
+
+//only used in HTTP1.0
+func(c *Client) closeConn(connId string) {
+	url := fmt.Sprintf("http://%v/msg?clientid=%v", c.ServerAddr, c.ClientId)
+	readerMsgPack := &schema.MsgPack{
+		MsgType: schema.MSG_TYPE_OPEN_CONN_REQUEST,
+		Msg: &schema.OpenConnRequest {
+			ConnId: connId,
+			Role: schema.ROLE_READER,
+			Operator: schema.OPERATOR_CONN_CLOSE,
+		},
+	}
+	r, w := io.Pipe()
+	go func() {
+		schema.WriteMsg(w, readerMsgPack)
+		w.Close()
+	}()
+
+	http.Post(url, "", r)
+
+	readerMsgPack = &schema.MsgPack{
+		MsgType: schema.MSG_TYPE_OPEN_CONN_REQUEST,
+		Msg: &schema.OpenConnRequest {
+			ConnId: connId,
+			Role: schema.ROLE_WRITER,
+			Operator: schema.OPERATOR_CONN_CLOSE,
+		},
+	}
+	r, w = io.Pipe()
+	go func() {
+		schema.WriteMsg(w, readerMsgPack)
+		w.Close()
+	}()
+
+	http.Post(url, "", r)
 }
 
 func (c *Client) openReverseConn(connId string) error {
