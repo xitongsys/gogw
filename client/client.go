@@ -223,13 +223,11 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 				go func() {
 					schema.WriteMsg(w, readerMsgPack)
 					_, err = common.CopyAll(w, bytes.NewReader(data[:n]), c.Compress, false, nil)
-					logger.Info("=====send to server====", n, err)
 					w.Close()
 				}()
 
 				if resp, err2 := http.Post(url, "", r); err2 != nil {
 					err = err2
-					logger.Info("=====post error====", err2)
 
 				}else{
 					var respBs = make([]byte, 1)
@@ -237,11 +235,9 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 					n, err = resp.Body.Read(respBs)
 					//zero response means close conn
 					if n == 0 || (err != nil && err != io.EOF) {
-						logger.Info("===closed by 0 response", n, err)
 						break
 					}
 					err = nil
-					logger.Info("====post response===", string(respBs))
 					resp.Body.Close()
 				}
 			}
@@ -294,8 +290,6 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 
 				n, err = common.CopyAll(conn, response.Body, false, c.Compress, nil)
 				response.Body.Close()
-
-				logger.Info("====send to conn ===", n, err)
 			}
 
 			c.closeConn(connId)

@@ -1,8 +1,8 @@
 package common
 
 import (
-	"io"
 	"compress/zlib"
+	"io"
 	"net/http"
 
 	"gogw/monitor"
@@ -45,7 +45,7 @@ func Copy(w io.Writer, r io.Reader,
 
 		n, err = newWriter.Write(data[:n])
 		if err != nil {
-			//return err
+			return tot, err
 		}
 
 		if ww, ok := newWriter.(*zlib.Writer); ok {
@@ -102,7 +102,7 @@ func CopyOne(w io.Writer, r io.Reader,
 		}
 
 		if ww, ok := newWriter.(*zlib.Writer); ok {
-			ww.Flush()
+			ww.Close()
 		}
 
 		//monitor
@@ -134,7 +134,7 @@ func CopyAll(w io.Writer, r io.Reader,
 
 	defer func(){
 		if ww, ok := newWriter.(*zlib.Writer); ok {
-			ww.Flush()
+			ww.Close()
 		}
 	}()
 
@@ -154,7 +154,7 @@ func CopyAll(w io.Writer, r io.Reader,
 
 		_, err = newWriter.Write(data[:n])
 		if err != nil {
-			//return err
+			return tot, err
 		}
 
 		//monitor
