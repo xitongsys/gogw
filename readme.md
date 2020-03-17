@@ -5,7 +5,7 @@ gogw is a port forwarding/reverse forwarding tool over HTTP implements by golang
 
 * port forwarding/port reverse forwarding
 * support TCP/UDP
-* pure over HTTP1.1(no WebSocket) to avoid some firewall issues
+* pure over HTTP1.0/HTTP1.1(no WebSocket) to avoid some firewall issues
 
 ## How to use ?
 
@@ -36,7 +36,8 @@ Suppose you have a host with public IP 11.11.11.11 and  local host behind a fire
 		"Protocol": "tcp",
 		"Direction": "reverse",
 		"Description":"webservice",
-		"Compress": true
+		"Compress": true,
+		"HttpVersion": "http1.1"
 	}]
 }
 ```
@@ -66,7 +67,8 @@ Suppose you have a local host A(10.0.0.2), local host B(10.0.0.3) and another ho
 		"Protocol": "tcp",
 		"Direction": "forward",
 		"Description":"webservice",
-		"Compress": true
+		"Compress": true,
+		"HttpVersion": "http1.1"
 	}]
 }
 ```
