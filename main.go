@@ -47,6 +47,7 @@ func main(){
 				cfg.Protocol, 
 				cfg.Description,
 				cfg.Compress,
+				cfg.HttpVersion,
 			)
 
 			wg.Add(1)

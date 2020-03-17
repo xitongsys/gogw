@@ -1,12 +1,13 @@
 {
 	"Clients":[{
-		"ServerAddr":"127.0.0.1:80",
+		"ServerAddr":"127.0.0.1:4000",
 		"SourceAddr":"127.0.0.1:8080",
 		"ToPort":81,
 		"Protocol": "tcp",
 		"Direction": "reverse",
 		"Description":"webservice",
-		"Compress": true
+		"Compress": true,
+		"HttpVersion": "http1.1"
 	}],
 	"Server":{
 		"ServerAddr":"0.0.0.0:80",

@@ -54,6 +54,7 @@ func (s *Server) registerHandler(w http.ResponseWriter, req *http.Request) {
 		msg.SourceAddr,
 		msg.Description,
 		msg.Compress,
+		msg.HttpVersion,
 	)
 
 	s.Clients.Store(clientId, client)
@@ -131,6 +132,7 @@ func (s *Server) getAllInfo() *schema.AllInfo {
 			Direction: client.Direction,
 			Description: client.Description,
 			Compress: client.Compress,
+			HttpVersion: client.HttpVersion,
 			ConnectionNumber: common.Max(client.ConnNumber, 0),
 			UploadSpeed: client.UploadSpeedMonitor.GetSpeed(),
 			DownloadSpeed: client.DownloadSpeedMonitor.GetSpeed(),

@@ -27,6 +27,7 @@ type Client struct {
 	Description string
 	Compress bool
 	ClientId string
+	HttpVersion string
 
 	Conns *sync.Map
 	UDPAddrToConnId map[string]string
@@ -40,6 +41,7 @@ func NewClient(
 	protocol string,
 	description string,
 	compress bool,
+	httpVersion string,
 ) *Client {
 	return &Client {
 		ServerAddr: serverAddr,
@@ -49,6 +51,7 @@ func NewClient(
 		Protocol: protocol,
 		Description: description,
 		Compress: compress,
+		HttpVersion: httpVersion,
 		ClientId: "",
 		Conns: &sync.Map{},
 		UDPAddrToConnId: make(map[string]string),
@@ -56,8 +59,8 @@ func NewClient(
 }
 
 func (c *Client) Start() {
-	logger.Info(fmt.Sprintf("\nclient start\nServer: %v\nSourceAddr: %v\nToPort: %v\nDirection: %v\nProtocol: %v\nDescription: %v\nCompress: %v\n", 
-	c.ServerAddr, c.SourceAddr, c.ToPort, c.Direction, c.Protocol, c.Description, c.Compress))
+	logger.Info(fmt.Sprintf("\nclient start\nServer: %v\nSourceAddr: %v\nToPort: %v\nDirection: %v\nProtocol: %v\nDescription: %v\nCompress: %v\nHttpVersion: %v\n", 
+	c.ServerAddr, c.SourceAddr, c.ToPort, c.Direction, c.Protocol, c.Description, c.Compress, c.HttpVersion))
 
 	//start heartbeat
 	go c.heartbeatLoop()
@@ -108,6 +111,7 @@ func (c *Client) register() error {
 			Protocol: c.Protocol,
 			Description: c.Description,
 			Compress: c.Compress,
+			HttpVersion: c.HttpVersion,
 		},
 	}
 
@@ -159,6 +163,8 @@ func (c *Client) msgRequestLoop(){
 			logger.Error(err)
 			continue
 		}
+
+		response.Body.Close()
 		
 		if msgPackResponse.MsgType == schema.MSG_TYPE_OPEN_CONN_RESPONSE {
 			msg := msgPackResponse.Msg.(*schema.OpenConnResponse)
@@ -184,17 +190,60 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 			Msg: &schema.OpenConnRequest {
 				ConnId: connId,
 				Role: schema.ROLE_READER,
+				Operator: schema.OPERATOR_DATA_TRANSFER,
 			},
 		}
 
-		r, w := io.Pipe()
-		go func(){
-			schema.WriteMsg(w, readerMsgPack)
-			common.Copy(w, conn, c.Compress, false, nil)
-			w.Close()
-		}()
+		if c.HttpVersion == schema.HTTP_VERSION_1_1 {
+			r, w := io.Pipe()
+			go func(){
+				schema.WriteMsg(w, readerMsgPack)
+				common.Copy(w, conn, c.Compress, false, nil)
+				w.Close()
+			}()
 
-		http.Post(url, "", r)
+			http.Post(url, "", r)
+
+		}else if c.HttpVersion == schema.HTTP_VERSION_1_0 {
+			var err error = nil
+			var n int = 0
+			data := make([]byte, common.PACKSIZE)
+
+			for err == nil {
+				n, err = conn.Read(data)
+				if n <= 0 && err != nil {
+					break
+				}
+
+				if n <= 0 {
+					continue
+				}
+
+				r, w := io.Pipe()
+				go func() {
+					schema.WriteMsg(w, readerMsgPack)
+					_, err = common.CopyAll(w, bytes.NewReader(data[:n]), c.Compress, false, nil)
+					w.Close()
+				}()
+
+				if resp, err2 := http.Post(url, "", r); err2 != nil {
+					err = err2
+
+				}else{
+					var respBs = make([]byte, 1)
+					var n int 
+					n, err = resp.Body.Read(respBs)
+					//zero response means close conn
+					if n == 0 || (err != nil && err != io.EOF) {
+						break
+					}
+					err = nil
+					resp.Body.Close()
+				}
+			}
+
+			c.closeConn(connId)
+		}
 	}()
 
 	//server -> conn
@@ -204,24 +253,86 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 			Msg: &schema.OpenConnRequest {
 				ConnId: connId,
 				Role: schema.ROLE_WRITER,
+				Operator: schema.OPERATOR_DATA_TRANSFER,
 			},
 		}
 
-		r, w := io.Pipe()
-		go func(){
-			schema.WriteMsg(w, writerMsgPack)
-			w.Close()
-		}()
+		if c.HttpVersion == schema.HTTP_VERSION_1_1 {
+			r, w := io.Pipe()
+			go func(){
+				schema.WriteMsg(w, writerMsgPack)
+				w.Close()
+			}()
 
-		response , err := http.Post(url, "", r)
-		if err != nil {
-			return
+			response , err := http.Post(url, "", r)
+			if err != nil {
+				return
+			}
+
+			common.Copy(conn, response.Body, false, c.Compress, nil)
+			response.Body.Close()
+
+		}else if c.HttpVersion == schema.HTTP_VERSION_1_0 {
+			var err error = nil
+			var n int = 0
+			for err == nil || ( err == io.EOF && n > 0) {
+				r, w := io.Pipe()
+				go func(){
+					schema.WriteMsg(w, writerMsgPack)
+					w.Close()
+				}()
+				
+				var response *http.Response
+				response , err = http.Post(url, "", r)
+				if err != nil {
+					return
+				}
+
+				n, err = common.CopyAll(conn, response.Body, false, c.Compress, nil)
+				response.Body.Close()
+			}
+
+			c.closeConn(connId)
 		}
-
-		common.Copy(conn, response.Body, false, c.Compress, nil)
 	}()
 
 	return nil
+}
+
+//only used in HTTP1.0
+func(c *Client) closeConn(connId string) {
+	url := fmt.Sprintf("http://%v/msg?clientid=%v", c.ServerAddr, c.ClientId)
+	readerMsgPack := &schema.MsgPack{
+		MsgType: schema.MSG_TYPE_OPEN_CONN_REQUEST,
+		Msg: &schema.OpenConnRequest {
+			ConnId: connId,
+			Role: schema.ROLE_READER,
+			Operator: schema.OPERATOR_CONN_CLOSE,
+		},
+	}
+	r, w := io.Pipe()
+	go func() {
+		schema.WriteMsg(w, readerMsgPack)
+		w.Close()
+	}()
+
+	http.Post(url, "", r)
+
+	readerMsgPack = &schema.MsgPack{
+		MsgType: schema.MSG_TYPE_OPEN_CONN_REQUEST,
+		Msg: &schema.OpenConnRequest {
+			ConnId: connId,
+			Role: schema.ROLE_WRITER,
+			Operator: schema.OPERATOR_CONN_CLOSE,
+		},
+	}
+	r, w = io.Pipe()
+	go func() {
+		schema.WriteMsg(w, readerMsgPack)
+		w.Close()
+	}()
+
+	http.Post(url, "", r)
 }
 
 func (c *Client) openReverseConn(connId string) error {

@@ -13,6 +13,7 @@ type RegisterRequest struct {
 	Protocol string
 	Description string
 	Compress bool
+	HttpVersion string
 }
 
 type RegisterResponse struct {
@@ -25,6 +26,9 @@ type OpenConnRequest struct {
 
 	//ROLE_READER/ROLE_WRITER/ROLE_QUERY_CONNID
 	Role string
+
+	//OPERATOR_CLOSE/OPERATOR_DATA_TRANSFER
+	Operator string
 }
 
 type OpenConnResponse struct {
@@ -32,4 +36,7 @@ type OpenConnResponse struct {
 
 	//STATUS_SUCCESS/STATUS_FAILED
 	Status string
+
+	//OPERATOR_CLOSE/OPERATOR_DATA_TRANSFER
+	Operator string
 }

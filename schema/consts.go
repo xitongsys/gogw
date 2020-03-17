@@ -22,6 +22,11 @@ const (
 )
 
 const (
+	OPERATOR_DATA_TRANSFER = "data_transfer"
+	OPERATOR_CONN_CLOSE = "conn close"
+)
+
+const (
 	MSG_TYPE_REGISTER_REQUEST = "registerrequest"
 	MSG_TYPE_REGISTER_RESPONSE = "registerresponse"
 
@@ -33,4 +38,9 @@ const (
 
 	MSG_TYPE_MSG_COMMON_REQUEST = "msgrequest"
 	//MSG_TYPE_MSG_RESPONSE = "msgresponse" msg response is some specific response
+)
+
+const (
+	HTTP_VERSION_1_1 = "http1.1"
+	HTTP_VERSION_1_0 = "http1.0"
 )
