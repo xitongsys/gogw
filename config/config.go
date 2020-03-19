@@ -26,15 +26,20 @@ type Config struct {
 	Server ServerConfig
 }
 
-func NewConfig(file string) (*Config, error) {
+func NewConfig(data []byte) (*Config, error) {
 	cfg := &Config{}
+	err := cfg.Unmarshal(data)
+	
+	return cfg, err
+}
+
+func NewConfigFromFile(file string) (*Config, error){
 	data, err := ioutil.ReadFile(file)
 	if err != nil {
-		return cfg, err
+		return nil, err
 	}
 
-	err = cfg.Unmarshal(data)
-	return cfg, err
+	return NewConfig(data)
 }
 
 func (cfg *Config) Marshal() ([]byte, error) {

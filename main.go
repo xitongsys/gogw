@@ -20,7 +20,7 @@ func main(){
 	logger.Info("gogw start")
 	flag.Parse()
 
-	cfg, err := config.NewConfig(*cfgFile)
+	cfg, err := config.NewConfigFromFile(*cfgFile)
 	if err != nil {
 		logger.Error(err)
 		return
