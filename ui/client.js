@@ -16,6 +16,7 @@ function Client(divid){
         SourceAddr: "",
         Description: "",
         Compress: "",
+        HttpVersion: "",
 
         ConnectionNumber: 0,
         UploadSpeed: uploadSpeed,
@@ -97,6 +98,7 @@ function Client(divid){
             this.Description = c.Description
             this.Direction = c.Direction
             this.Compress = c.Compress
+            this.HttpVersion = c.HttpVersion
 
             this.ConnectionNumber = c.ConnectionNumber
             var us = c.UploadSpeed, ds = c.DownloadSpeed
