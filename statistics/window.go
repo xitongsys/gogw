@@ -12,8 +12,6 @@ type WindowStat struct {
 	curValue interface{}
 
 	op func(v interface{}, cnt int64, nv interface{}) interface{}
-
-	histValues *Queue
 }
 
 func NewWindowStat(length time.Duration, 
@@ -27,8 +25,6 @@ func NewWindowStat(length time.Duration,
 		curValue: nil,
 
 		op: op,
-
-		histValues: NewQueue(capacity),
 	}
 }
 
@@ -39,40 +35,13 @@ func (w *WindowStat) Add(v interface{}) {
 		w.curCount++
 
 	}else if t.Unix() >= w.end.Unix() {
-		c := (t.Unix() - w.end.Unix())/int64(w.length.Seconds()) - int64(w.histValues.capacity)
-		if c < 0 {
-			c = 0
-		}
-
-		w.start = w.start.Add(time.Duration(c) * w.length)
-		w.end = w.end.Add(time.Duration(c) * w.length)
-
-		for t.Unix() >= w.end.Unix(){
-			w.histValues.Push(NewValueWithTime(w.curValue, w.end))
-			w.curCount, w.curValue = 0, nil
-			w.start = w.start.Add(w.length)
-			w.end = w.end.Add(w.length)
-		}
-		w.Add(v)
+		w.start = t
+		w.end = w.end.Add(w.length)
+		w.curValue = w.op(nil, 0, v)
+		w.curCount = 1
 	}
 }
 
-func (w *WindowStat) GetLatest() (*ValueWithTime, error) {
-	w.Add(int64(0))
-	r, e := w.histValues.Back()
-	if e != nil {
-		return nil, e
-	}
-
-	return r.(*ValueWithTime), nil
-}
-
-
-func (w *WindowStat) GetAll() []*ValueWithTime {
-	vs := w.histValues.All()
-	res := []*ValueWithTime{}
-	for _, v := range vs {
-		res = append(res, v.(*ValueWithTime))
-	}
-	return res
+func (w *WindowStat) GetLatest() interface{} {
+	return w.curValue
 }
