@@ -181,6 +181,11 @@ function Client(divid){
                         '<div class="col-sm-8">' + this.ConnectionNumber + '</div>' + 
                     '</div>' +
 
+                    '<div class="row">' +
+                        '<div class="col-sm-4"><h6>HttpVersion:</h6></div>' +
+                        '<div class="col-sm-8">' + this.HttpVersion + '</div>' + 
+                    '</div>' +
+
                 '</div>' + 
 
                 '<div class="col-sm-8">' +
