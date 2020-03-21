@@ -1,4 +1,3 @@
-
 package statistics
 
 func Count(vi interface{}, cnt int64, nvi interface{}) interface{} {

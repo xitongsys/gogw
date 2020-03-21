@@ -24,10 +24,10 @@ func (sm *SpeedMonitor) Add(size int64) {
 }
 
 func (sm *SpeedMonitor) GetSpeed() int {
-	vs, err := sm.SpeedRecord.GetLatest()
-	if err != nil || vs.Value == nil {
+	vs := sm.SpeedRecord.GetLatest()
+	if vs == nil {
 		return 0
 	}
-	
-	return int(vs.Value.(int64))
+
+	return int(vs.(int64))
 }
