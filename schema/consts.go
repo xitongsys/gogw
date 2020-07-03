@@ -1,8 +1,12 @@
 package schema
 
 const (
+	MSG_MAX_LENGTH = 1024 * 1024
+)
+
+const (
 	DIRECTION_FORWARD = "forward"
- 	DIRECTION_REVERSE = "reverse"
+	DIRECTION_REVERSE = "reverse"
 )
 
 const (

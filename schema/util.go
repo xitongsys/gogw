@@ -3,6 +3,7 @@ package schema
 import (
 	"encoding/binary"
 	"io"
+	"fmt"
 
 	"github.com/vmihailenco/msgpack/v4"
 )
@@ -16,8 +17,12 @@ func ReadMsg(r io.Reader) (*MsgPack, error) {
 	}
 
 	length := binary.LittleEndian.Uint32(lengthHeaderData)
-	data := make([]byte, length)
 
+	if length > MSG_MAX_LENGTH || length < 0 {
+		return nil, fmt.Errorf("Msg length illegal: %d", length)
+	}
+
+	data := make([]byte, length)
 	_, err = io.ReadAtLeast(r, data, int(length))
 	if err != nil {
 		return nil, err

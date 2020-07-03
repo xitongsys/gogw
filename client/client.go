@@ -165,7 +165,6 @@ func (c *Client) msgRequestLoop(){
 		}
 
 		response.Body.Close()
-		
 		if msgPackResponse.MsgType == schema.MSG_TYPE_OPEN_CONN_RESPONSE {
 			msg := msgPackResponse.Msg.(*schema.OpenConnResponse)
 			//only reverse connection need this
