@@ -90,10 +90,12 @@ func (c *Client) heartbeatLoop() {
 	for {
 		if c.ClientId != "" {
 			url := fmt.Sprintf("http://%s/heartbeat?clientid=%s", c.ServerAddr, c.ClientId)
-			_, err := http.Get(url)
+			resp, err := http.Get(url)
+			defer resp.Body.Close()
 			if err != nil {
 				logger.Error(err)
 			}
+			
 		}
 		time.Sleep(3 * time.Second)
 	}
