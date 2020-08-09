@@ -98,10 +98,12 @@ func (c *Client) heartbeatLoop() {
 			if c.ClientId != "" {
 				url := fmt.Sprintf("http://%s/heartbeat?clientid=%s", c.ServerAddr, c.ClientId)
 				resp, err := http.Get(url)
-				defer resp.Body.Close()
+				
 				if err != nil {
 					logger.Error(err)
+					return
 				}
+				defer resp.Body.Close()
 
 			}
 		}()
@@ -368,7 +370,7 @@ func (c *Client) startForwardTCPListener() error {
 			conn, err := listener.Accept()
 			if err != nil {
 				logger.Error(err)
-				return
+				//return
 			}
 
 			if connId, err := c.queryConnId(); err == nil {
