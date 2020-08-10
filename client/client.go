@@ -370,6 +370,7 @@ func (c *Client) startForwardTCPListener() error {
 			conn, err := listener.Accept()
 			if err != nil {
 				logger.Error(err)
+				continue;
 				//return
 			}
 
