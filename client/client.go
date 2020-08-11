@@ -98,7 +98,7 @@ func (c *Client) heartbeatLoop() {
 			if c.ClientId != "" {
 				url := fmt.Sprintf("http://%s/heartbeat?clientid=%s", c.ServerAddr, c.ClientId)
 				resp, err := http.Get(url)
-				
+
 				if err != nil {
 					logger.Error(err)
 					return
@@ -197,6 +197,10 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 
 	//conn -> server
 	go func() {
+		defer func() {
+			c.closeConn(connId)
+		}()
+
 		readerMsgPack := &schema.MsgPack{
 			MsgType: schema.MSG_TYPE_OPEN_CONN_REQUEST,
 			Msg: &schema.OpenConnRequest{
@@ -253,13 +257,15 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 					resp.Body.Close()
 				}
 			}
-
-			c.closeConn(connId)
 		}
 	}()
 
 	//server -> conn
 	go func() {
+		defer func() {
+			c.closeConn(connId)
+		}()
+
 		writerMsgPack := &schema.MsgPack{
 			MsgType: schema.MSG_TYPE_OPEN_CONN_REQUEST,
 			Msg: &schema.OpenConnRequest{
@@ -303,8 +309,6 @@ func (c *Client) openConn(connId string, conn net.Conn) error {
 				n, err = common.CopyAll(conn, response.Body, false, c.Compress, nil)
 				response.Body.Close()
 			}
-
-			c.closeConn(connId)
 		}
 	}()
 
@@ -370,8 +374,7 @@ func (c *Client) startForwardTCPListener() error {
 			conn, err := listener.Accept()
 			if err != nil {
 				logger.Error(err)
-				continue;
-				//return
+				return
 			}
 
 			if connId, err := c.queryConnId(); err == nil {
